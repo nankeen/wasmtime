@@ -1,0 +1,13 @@
+[package]
+name = "skylift"
+version = "0.1.0"
+edition = "2018"
+authors = ["Kai <nankeen@users.noreply.github.com>"]
+
+[dependencies]
+wasmtime-environ = { path = "../environ", version = "0.30.0" }
+cranelift-wasm = { path = "../../cranelift/wasm", version = "0.77.0" }
+cranelift-codegen = { path = "../../cranelift/codegen", version = "0.77.0" }
+
+[build-dependencies]
+capnpc = "0.14.4"

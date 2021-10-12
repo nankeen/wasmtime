@@ -367,6 +367,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "capnp"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae9b8a7119420b5279ddc2b4ee553ee15bcf4605df6135a26f03ffe153bee97c"
+
+[[package]]
+name = "capnpc"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b47bce811162518b5c38f746ed584bd2922ae7bb560ef64f230d2e4ee0d111fe"
+dependencies = [
+ "capnp",
+]
+
+[[package]]
 name = "capstone"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2832,6 +2847,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "skylift"
+version = "0.1.0"
+dependencies = [
+ "capnpc",
+ "cranelift-codegen",
+ "cranelift-wasm",
+ "wasmtime-environ",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3663,6 +3688,7 @@ dependencies = [
  "object",
  "pretty_env_logger",
  "rayon",
+ "skylift",
  "structopt",
  "target-lexicon",
  "tempfile",
