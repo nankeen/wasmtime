@@ -2,7 +2,7 @@ use crate::convert::from_triple;
 use crate::skylift_capnp::compiler_builder;
 use anyhow::Result;
 use capnp::capability::Promise;
-use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
+use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::AsyncReadExt;
 use tokio::net::TcpListener;
 use wasmtime_cranelift::builder;
@@ -22,17 +22,13 @@ impl compiler_builder::Server for CompilerBuilderImpl {
         params: compiler_builder::TargetParams,
         _result: compiler_builder::TargetResults,
     ) -> Promise<(), ::capnp::Error> {
-        let target = params
-            .get()
-            .and_then(compiler_builder::target_params::Reader::get_target)
-            .and_then(|tgt| {
-                from_triple(tgt).map_err(|_| capnp::Error::failed("triple argument conversion failed".to_string()))
-            });
-        self.0.target(target.unwrap());
+        let target = pry!(pry!(params.get()).get_target());
 
-        Promise::err(::capnp::Error::unimplemented(
-            "method not implemented".to_string(),
-        ))
+        let target_triple = pry!(from_triple(target));
+
+        Promise::ok(pry!(self.0.target(target_triple).map_err(|_| {
+            capnp::Error::failed("failed to set triple".to_string())
+        })))
     }
 
     fn triple(

@@ -1,7 +1,7 @@
 use crate::skylift_capnp;
 
-pub(crate) fn from_triple<'a>(
-    triple: skylift_capnp::triple::Reader<'a>,
+pub(crate) fn from_triple(
+    triple: skylift_capnp::triple::Reader<'_>,
 ) -> Result<target_lexicon::Triple, ::capnp::NotInSchema> {
     let architecture = triple.get_architecture().map(from_architecture)?;
     let vendor = triple.get_vendor().map(from_vendor)?;
