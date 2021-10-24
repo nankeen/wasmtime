@@ -5,5 +5,6 @@ mod config;
 mod run;
 mod settings;
 mod wast;
+mod server;
 
-pub use self::{compile::*, config::*, run::*, settings::*, wast::*};
+pub use self::{compile::*, config::*, run::*, settings::*, wast::*, server::*};
