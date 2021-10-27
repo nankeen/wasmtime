@@ -3,7 +3,8 @@ pub mod skylift_capnp {
 }
 
 mod builder;
-pub(crate) mod convert;
+mod compiler;
+mod convert;
 mod server;
 
 pub use server::*;

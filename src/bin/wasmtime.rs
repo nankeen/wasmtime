@@ -6,7 +6,7 @@
 use anyhow::Result;
 use structopt::{clap::AppSettings, clap::ErrorKind, StructOpt};
 use wasmtime_cli::commands::{
-    CompileCommand, ConfigCommand, RunCommand, SettingsCommand, WastCommand, ServerCommand,
+    CompileCommand, ConfigCommand, RunCommand, ServerCommand, SettingsCommand, WastCommand,
 };
 
 /// Wasmtime WebAssembly Runtime
@@ -47,7 +47,7 @@ enum WasmtimeApp {
     /// Runs a WebAssembly test script file
     Wast(WastCommand),
     /// Runs a JIT compilation server
-    Server(ServerCommand)
+    Server(ServerCommand),
 }
 
 impl WasmtimeApp {

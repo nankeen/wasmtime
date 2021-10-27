@@ -1,6 +1,6 @@
-use structopt::{clap::AppSettings, StructOpt};
-use skylift::run_server;
 use anyhow::Result;
+use skylift::run_server;
+use structopt::{clap::AppSettings, StructOpt};
 
 lazy_static::lazy_static! {
     static ref AFTER_HELP: String = {

@@ -3,8 +3,8 @@
 mod compile;
 mod config;
 mod run;
+mod server;
 mod settings;
 mod wast;
-mod server;
 
-pub use self::{compile::*, config::*, run::*, settings::*, wast::*, server::*};
+pub use self::{compile::*, config::*, run::*, server::*, settings::*, wast::*};

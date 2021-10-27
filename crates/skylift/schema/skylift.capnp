@@ -24,7 +24,66 @@ struct Setting {
 }
 
 interface Compiler {
-    # TODO: Compiler interface
+    # Compiler interface
+    # Compiles the function `index` within `translation`.
+    #
+    # The body of the function is available in `data` and configuration
+    # values are also passed in via `tunables`. Type information in
+    # `translation` is all relative to `types`.
+    # compile_function @0 (translation: ModuleTranslation, index: UInt32, data: FunctionBodyData, tunables: Tunables, types: TypeTables) -> (func: CompiledFunction);
+
+    # Collects the results of compilation into an in-memory object.
+    #
+    # This function will receive the same `Box<dyn Ayn>` produced as part of
+    # `compile_function`, as well as the general compilation environment with
+    # the translation/types. This method is expected to populate information
+    # in the object file such as:
+    #
+    # * Compiled code in a `.text` section
+    # * Unwind information in Wasmtime-specific sections
+    # * DWARF debugging information for the host, if `emit_dwarf` is `true`
+    #   and the compiler supports it.
+    # * Relocations, if necessary, for the text section
+    #
+    # The final result of compilation will contain more sections inserted by
+    # the compiler-agnostic runtime.
+    # fn emit_obj(
+    #     &self,
+    #     module: &ModuleTranslation,
+    #     types: &TypeTables,
+    #     funcs: PrimaryMap<DefinedFuncIndex, Box<dyn Any + Send>>,
+    #     emit_dwarf: bool,
+    #     obj: &mut Object,
+    # ) -> Result<(PrimaryMap<DefinedFuncIndex, FunctionInfo>, Vec<Trampoline>)>;
+
+    # Creates a new `Object` file which is used to build the results of a
+    # compilation into.
+    #
+    # The returned object file will have an appropriate
+    # architecture/endianness for `self.triple()`, but at this time it is
+    # always an ELF file, regardless of target platform.
+    # fn object(&self) -> Result<Object> {
+    #     use target_lexicon::Architecture::*;
+
+    #     let triple = self.triple();
+    #     Ok(Object::new(
+    #         BinaryFormat::Elf,
+    #         match triple.architecture {
+    #             X86_32(_) => Architecture::I386,
+    #             X86_64 => Architecture::X86_64,
+    #             Arm(_) => Architecture::Arm,
+    #             Aarch64(_) => Architecture::Aarch64,
+    #             S390x => Architecture::S390x,
+    #             architecture => {
+    #                 anyhow::bail!("target architecture {:?} is unsupported", architecture,);
+    #             }
+    #         },
+    #         match triple.endianness().unwrap() {
+    #             target_lexicon::Endianness::Little => object::Endianness::Little,
+    #             target_lexicon::Endianness::Big => object::Endianness::Big,
+    #         },
+    #     ))
+    # }
 }
 
 # The "architecture" field.
@@ -143,7 +202,7 @@ enum OperatingSystem {
     macOSX @16;
     nebulet @17;
     netbsd @18;
-    none @19;
+    nonee @19;
     openbsd @20;
     psp @21;
     redox @22;
