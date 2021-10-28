@@ -2,27 +2,6 @@
 
 # TODO: Comments
 
-# Different kinds of `Setting` values that can be configured in a
-# `CompilerBuilder`
-enum SettingKind {
-    # The setting is an enumeration, meaning it's one of a set of values.
-    enum @0;
-    # The setting is a number.
-    num @1;
-    # The setting is a boolean.
-    bool @2;
-    # The setting is a preset.
-    preset @3;
-}
-
-# Description of compiler settings.
-struct Setting {
-    name @0 :Text;
-    description @1 :Text;
-    kind @2 :SettingKind;
-    values @3 :List(Text);
-}
-
 interface Compiler {
     # Compiler interface
     # Compiles the function `index` within `translation`.
@@ -62,6 +41,7 @@ interface Compiler {
     # The returned object file will have an appropriate
     # architecture/endianness for `self.triple()`, but at this time it is
     # always an ELF file, regardless of target platform.
+    ping @0 () -> (pong :Text);
     # fn object(&self) -> Result<Object> {
     #     use target_lexicon::Architecture::*;
 
@@ -84,6 +64,53 @@ interface Compiler {
     #         },
     #     ))
     # }
+}
+
+interface CompilerBuilder {
+    # Sets the target of compilation to the target specified.
+    target @0 (target :Triple);
+
+    # Returns the currently configured target triple that compilation will
+    # produce artifacts for.
+    triple @1 () -> (triple :Triple);
+
+    # Compiler-specific method to configure various settings in the compiler
+    # itself.
+    # This is expected to be defined per-compiler. Compilers should return
+    # errors for unknown names/values.
+    set @2 (name :Text, val :Text);
+
+    # Compiler-specific method for configuring settings.
+    # Same as `set` except it is exclusively for enabling boolean flags.
+    enable @3 (name :Text);
+
+    # Returns a list of all possible settings that can be configured with
+    # `set` and `enable`.
+    settings @4 () -> (settings :List(Setting));
+
+    # Builds a new [`Compiler`] object from this configuration.
+    build @5 () -> (compiler: Compiler);
+}
+
+# Different kinds of `Setting` values that can be configured in a
+# `CompilerBuilder`
+enum SettingKind {
+    # The setting is an enumeration, meaning it's one of a set of values.
+    enum @0;
+    # The setting is a number.
+    num @1;
+    # The setting is a boolean.
+    bool @2;
+    # The setting is a preset.
+    preset @3;
+}
+
+# Description of compiler settings.
+struct Setting {
+    name @0 :Text;
+    description @1 :Text;
+    kind @2 :SettingKind;
+    values @3 :List(Text);
 }
 
 # The "architecture" field.
@@ -268,30 +295,4 @@ struct Triple {
 
     # The "binary format" (rarely used).
     binaryFormat @4 :BinaryFormat;
-}
-
-interface CompilerBuilder {
-    # Sets the target of compilation to the target specified.
-    target @0 (target :Triple);
-
-    # Returns the currently configured target triple that compilation will
-    # produce artifacts for.
-    triple @1 () -> (triple :Triple);
-
-    # Compiler-specific method to configure various settings in the compiler
-    # itself.
-    # This is expected to be defined per-compiler. Compilers should return
-    # errors for unknown names/values.
-    set @2 (name :Text, val :Text);
-
-    # Compiler-specific method for configuring settings.
-    # Same as `set` except it is exclusively for enabling boolean flags.
-    enable @3 (name :Text);
-
-    # Returns a list of all possible settings that can be configured with
-    # `set` and `enable`.
-    settings @4 () -> (settings :List(Setting));
-
-    # Builds a new [`Compiler`] object from this configuration.
-    build @5 () -> (compiler: Compiler);
 }

@@ -1,4 +1,7 @@
-use crate::{builder::CompilerBuilderImpl, skylift_capnp::compiler_builder};
+pub(crate) mod builder;
+pub(crate) mod compiler;
+
+use crate::{server::builder::CompilerBuilderImpl, skylift_capnp::compiler_builder};
 use anyhow::Result;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::AsyncReadExt;

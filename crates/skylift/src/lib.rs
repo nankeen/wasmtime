@@ -2,12 +2,11 @@ pub mod skylift_capnp {
     include!(concat!(env!("OUT_DIR"), "/schema/skylift_capnp.rs"));
 }
 
-mod builder;
-mod compiler;
+pub mod client;
 mod convert;
 mod server;
 
-pub use server::*;
+pub use server::run_server;
 
 #[cfg(test)]
 mod tests {

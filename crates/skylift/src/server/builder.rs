@@ -1,6 +1,6 @@
 use crate::{
-    compiler::CompilerImpl,
     convert::{internal2rpc, rpc2internal},
+    server::compiler::CompilerImpl,
     skylift_capnp::compiler_builder,
 };
 use capnp::capability::Promise;
@@ -39,36 +39,6 @@ impl compiler_builder::Server for CompilerBuilderImpl {
         internal2rpc::to_triple_builder(&mut builder, self.0.triple());
 
         Promise::ok(())
-    }
-
-    fn set(
-        &mut self,
-        _param: compiler_builder::SetParams,
-        _result: compiler_builder::SetResults,
-    ) -> Promise<(), ::capnp::Error> {
-        Promise::err(::capnp::Error::unimplemented(
-            "method not implemented".to_string(),
-        ))
-    }
-
-    fn enable(
-        &mut self,
-        _param: compiler_builder::EnableParams,
-        _result: compiler_builder::EnableResults,
-    ) -> Promise<(), ::capnp::Error> {
-        Promise::err(::capnp::Error::unimplemented(
-            "method not implemented".to_string(),
-        ))
-    }
-
-    fn settings(
-        &mut self,
-        _settings: compiler_builder::SettingsParams,
-        _result: compiler_builder::SettingsResults,
-    ) -> Promise<(), ::capnp::Error> {
-        Promise::err(::capnp::Error::unimplemented(
-            "method not implemented".to_string(),
-        ))
     }
 
     fn build(
