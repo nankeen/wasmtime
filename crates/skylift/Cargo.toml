@@ -9,7 +9,7 @@ wasmtime-environ = { path = "../environ", version = "0.30.0" }
 wasmtime-cranelift = { path = "../cranelift", version = "0.30.0" }
 cranelift-wasm = { path = "../../cranelift/wasm", version = "0.77.0" }
 cranelift-codegen = { path = "../../cranelift/codegen", version = "0.77.0" }
-tokio = { version = "1.8.0", features = ["rt-multi-thread", "net", "macros"] }
+tokio = { version = "1.8.0", features = ["rt-multi-thread", "net", "macros", "sync"] }
 tokio-util = { version = "0.6.8", features = ["compat"] }
 anyhow = "1.0.19"
 capnp = "0.14.3"

@@ -1332,7 +1332,8 @@ impl Config {
 #[cfg(compiler)]
 fn compiler_builder(strategy: Strategy) -> Result<Box<dyn CompilerBuilder>> {
     match strategy {
-        Strategy::Auto | Strategy::Cranelift => Ok(wasmtime_cranelift::builder()),
+        Strategy::Auto | Strategy::Skylift => Ok(skylift::client::builder()),
+        Strategy::Cranelift => Ok(wasmtime_cranelift::builder()),
         #[cfg(feature = "lightbeam")]
         Strategy::Lightbeam => unimplemented!(),
         #[cfg(not(feature = "lightbeam"))]
@@ -1444,6 +1445,9 @@ pub enum Strategy {
     /// To successfully pass this argument to [`Config::strategy`] the
     /// `lightbeam` feature of this crate must be enabled.
     Lightbeam,
+
+    /// Remote compilation backend
+    Skylift,
 }
 
 /// Possible optimization levels for the Cranelift codegen backend.

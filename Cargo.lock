@@ -3753,6 +3753,7 @@ dependencies = [
  "region",
  "rustc-demangle",
  "serde",
+ "skylift",
  "target-lexicon",
  "tempfile",
  "wasi-cap-std-sync",

@@ -13,20 +13,26 @@ pub async fn run_server(addr: &str) -> Result<()> {
     let skylift_client: compiler_builder::Client =
         capnp_rpc::new_client(CompilerBuilderImpl::new());
 
-    loop {
-        let (stream, _) = listener.accept().await?;
+    tokio::task::LocalSet::new()
+        .run_until(async move {
+            loop {
+                let (stream, _) = listener.accept().await?;
 
-        stream.set_nodelay(true)?;
-        let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
-        let network = twoparty::VatNetwork::new(
-            reader,
-            writer,
-            rpc_twoparty_capnp::Side::Server,
-            Default::default(),
-        );
+                stream.set_nodelay(true)?;
+                let (reader, writer) =
+                    tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
+                let network = twoparty::VatNetwork::new(
+                    reader,
+                    writer,
+                    rpc_twoparty_capnp::Side::Server,
+                    Default::default(),
+                );
 
-        let rpc_system = RpcSystem::new(Box::new(network), Some(skylift_client.clone().client));
+                let rpc_system =
+                    RpcSystem::new(Box::new(network), Some(skylift_client.clone().client));
 
-        tokio::task::spawn_local(Box::pin(rpc_system));
-    }
+                tokio::task::spawn_local(Box::pin(rpc_system));
+            }
+        })
+        .await
 }
