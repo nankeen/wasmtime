@@ -1,6 +1,5 @@
-fn main() {
-    capnpc::CompilerCommand::new()
-        .file("schema/skylift.capnp")
-        .run()
-        .unwrap();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_build::compile_protos("schema/skylift.proto")?;
+
+    Ok(())
 }

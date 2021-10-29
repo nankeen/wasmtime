@@ -1,0 +1,245 @@
+syntax = "proto3";
+
+package skylift;
+
+/*
+interface CompilerBuilder {
+    # Sets the target of compilation to the target specified.
+    target = 0 (target :Triple);
+
+    # Returns the currently configured target triple that compilation will
+    # produce artifacts for.
+    triple = 1 () -> (triple :Triple);
+
+    # Compiler-specific method to configure various settings in the compiler
+    # itself.
+    # This is expected to be defined per-compiler. Compilers should return
+    # errors for unknown names/values.
+    set = 2 (name :Text, val :Text);
+
+    # Compiler-specific method for configuring settings.
+    # Same as `set` except it is exclusively for enabling boolean flags.
+    enable = 3 (name :Text);
+
+    # Returns a list of all possible settings that can be configured with
+    # `set` and `enable`.
+    settings = 4 () -> (settings :List(Setting));
+
+    # Builds a new [`Compiler`] object from this configuration.
+    build = 5 () -> (compiler: Compiler);
+}
+*/
+
+service CompilerBuilder {
+  // CompilerBuilder 
+  rpc SetTarget(Triple) returns (Empty);
+  rpc GetTriple(Triple) returns (Triple);
+  rpc SetSettings(SetRequest) returns (Empty);
+  rpc EnableSettings(EnableRequest) returns (Empty);
+  rpc GetSettings(Empty) returns (SettingsResponse);
+  rpc Build(Empty) returns (Empty);
+}
+
+message Empty {}
+
+message SetRequest {
+  string name = 1;
+  string value = 2;
+}
+
+message EnableRequest {
+  string name = 1;
+}
+
+message SettingsResponse {
+  repeated Setting settings = 1;
+
+  enum SettingKind {
+      // The setting is an enumeration, meaning it's one of a set of values.
+      ENUM = 0;
+      // The setting is a number.
+      NUM = 1;
+      // The setting is a boolean.
+      BOOL = 2;
+      // The setting is a preset.
+      PRESET = 3;
+  }
+
+  message Setting {
+    string name = 1;
+    string description = 2;
+    SettingKind kind = 3;
+    repeated string values = 4;
+  }
+}
+
+message Triple {
+  Architecture architecture         = 1;
+  Vendor vendor                     = 2;
+  OperatingSystem operating_system  = 3;
+  Environment environment           = 4;
+  BinaryFormat binary_format        = 5;
+
+  enum Architecture {
+    ARCH_UNKNOWN = 0;
+    ARCH_ARM = 1;
+    ARCH_ARMEB = 2;
+    ARCH_ARMV4 = 3;
+    ARCH_ARMV4T = 4;
+    ARCH_ARMV5T = 5;
+    ARCH_ARMV5TE = 6;
+    ARCH_ARMV5TEJ = 7;
+    ARCH_ARMV6 = 8;
+    ARCH_ARMV6J = 9;
+    ARCH_ARMV6K = 10;
+    ARCH_ARMV6Z = 11;
+    ARCH_ARMV6KZ = 12;
+    ARCH_ARMV6T2 = 13;
+    ARCH_ARMV6M = 14;
+    ARCH_ARMV7 = 15;
+    ARCH_ARMV7A = 16;
+    ARCH_ARMV7VE = 17;
+    ARCH_ARMV7M = 18;
+    ARCH_ARMV7R = 19;
+    ARCH_ARMV7S = 20;
+    ARCH_ARMV8 = 21;
+    ARCH_ARMV8A = 22;
+    ARCH_ARMV81A = 23;
+    ARCH_ARMV82A = 24;
+    ARCH_ARMV83A = 25;
+    ARCH_ARMV84A = 26;
+    ARCH_ARMV85A = 27;
+    ARCH_ARMV8M_BASE = 28;
+    ARCH_ARMV8M_MAIN = 29;
+    ARCH_ARMV8R = 30;
+    ARCH_ARMEBV7R = 31;
+    ARCH_THUMBEB = 32;
+    ARCH_THUMBV4T = 33;
+    ARCH_THUMBV6M = 34;
+    ARCH_THUMBV7A = 35;
+    ARCH_THUMBV7EM = 36;
+    ARCH_THUMBV7M = 37;
+    ARCH_THUMBV7NEON = 38;
+    ARCH_THUMBV8M_BASE = 39;
+    ARCH_THUMBV8M_MAIN = 40;
+    ARCH_AMD_GCN = 41;
+    ARCH_AARCH64 = 42;
+    ARCH_AARCH64BE = 43;
+    ARCH_ASMJS = 44;
+    ARCH_AVR = 45;
+    ARCH_HEXAGON = 46;
+    ARCH_I386 = 47;
+    ARCH_I586 = 48;
+    ARCH_I686 = 49;
+    ARCH_MIPS = 50;
+    ARCH_MIPSEL = 51;
+    ARCH_MIPSISA32R6 = 52;
+    ARCH_MIPSISA32R6EL = 53;
+    ARCH_MIPS64 = 54;
+    ARCH_MIPS64EL = 55;
+    ARCH_MIPSISA64R6 = 56;
+    ARCH_MIPSISA64R6EL = 57;
+    ARCH_MSP430 = 58;
+    ARCH_NVPTX64 = 59;
+    ARCH_POWERPC = 60;
+    ARCH_POWERPC64 = 61;
+    ARCH_POWERPC64LE = 62;
+    ARCH_RISCV32 = 63;
+    ARCH_RISCV32GC = 64;
+    ARCH_RISCV32I = 65;
+    ARCH_RISCV32IMAC = 66;
+    ARCH_RISCV32IMC = 67;
+    ARCH_RISCV64 = 68;
+    ARCH_RISCV64GC = 69;
+    ARCH_RISCV64IMAC = 70;
+    ARCH_S390X = 71;
+    ARCH_SPARC = 72;
+    ARCH_SPARC64 = 73;
+    ARCH_SPARCV9 = 74;
+    ARCH_WASM32 = 75;
+    ARCH_WASM64 = 76;
+    ARCH_X86_64 = 77;
+  }
+
+  enum Vendor {
+    VENDOR_UNKNOWN = 0;
+    VENDOR_AMD = 1;
+    VENDOR_APPLE = 2;
+    VENDOR_EXPERIMENTAL = 3;
+    VENDOR_FORTANIX = 4;
+    VENDOR_NVIDIA = 5;
+    VENDOR_PC = 6;
+    VENDOR_RUMPRUN = 7;
+    VENDOR_SUN = 8;
+    VENDOR_UWP = 9;
+    VENDOR_WRS = 10;
+  }
+
+  enum OperatingSystem {
+    OS_UNKNOWN = 0;
+    OS_AMDHSA = 1;
+    OS_BITRIG = 2;
+    OS_CLOUDABI = 3;
+    OS_CUDA = 4;
+    OS_DARWIN = 5;
+    OS_DRAGONFLY = 6;
+    OS_EMSCRIPTEN = 7;
+    OS_FREEBSD = 8;
+    OS_FUCHSIA = 9;
+    OS_HAIKU = 10;
+    OS_HERMIT = 11;
+    OS_ILLUMOS = 12;
+    OS_IOS = 13;
+    OS_L4RE = 14;
+    OS_LINUX = 15;
+    OS_MACOSX = 16;
+    OS_NEBULET = 17;
+    OS_NETBSD = 18;
+    OS_NONE = 19;
+    OS_OPENBSD = 20;
+    OS_PSP = 21;
+    OS_REDOX = 22;
+    OS_SOLARIS = 23;
+    OS_TVOS = 24;
+    OS_UEFI = 25;
+    OS_VXWORKS = 26;
+    OS_WASI = 27;
+    OS_WINDOWS = 28;
+  }
+
+  enum Environment {
+    ENV_UNKNOWN = 0;
+    ENV_AMD_GIZ = 1;
+    ENV_ANDROID = 2;
+    ENV_ANDROIDEABI = 3;
+    ENV_EABI = 4;
+    ENV_EABIHF = 5;
+    ENV_GNU = 6;
+    ENV_GNU_ABI64 = 7;
+    ENV_GNU_EABI = 8;
+    ENV_GNU_EABIHF = 9;
+    ENV_GNUSPE = 10;
+    ENV_GNUX32 = 11;
+    ENV_GNU_ILP32 = 12;
+    ENV_MACABI = 13;
+    ENV_MUSL = 14;
+    ENV_MUSLEABI = 15;
+    ENV_MUSLEABIHF = 16;
+    ENV_MUSLABI64 = 17;
+    ENV_MSVC = 18;
+    ENV_KERNEL = 19;
+    ENV_UCLIBC = 20;
+    ENV_UCLIBCEABI = 21;
+    ENV_SGX = 22;
+    ENV_SOFTFLOAT = 23;
+    ENV_SPE = 24;
+  }
+
+  enum BinaryFormat {
+    BIN_UNKNOWN = 0;
+    BIN_ELF = 1;
+    BIN_COFF = 2;
+    BIN_MACHO = 3;
+    BIN_WASM = 4;
+  }
+}

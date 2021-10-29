@@ -1,56 +1,39 @@
-use crate::{
-    convert::{internal2rpc, rpc2internal},
-    server::compiler::CompilerImpl,
-    skylift_capnp::compiler_builder,
-};
-use capnp::capability::Promise;
-use capnp_rpc::pry;
-use wasmtime_cranelift::builder;
-use wasmtime_environ::CompilerBuilder;
+use crate::skylift_grpc::compiler_builder_server::{CompilerBuilder, CompilerBuilderServer};
+use crate::skylift_grpc::{Empty, EnableRequest, SetRequest, SettingsResponse, Triple};
+use tonic::{Request, Response, Status};
 
-pub(crate) struct CompilerBuilderImpl(Box<dyn CompilerBuilder>);
+#[derive(Debug)]
+struct CompilerBuilderService;
 
-impl CompilerBuilderImpl {
-    pub(crate) fn new() -> Self {
-        Self(builder())
-    }
-}
-
-impl compiler_builder::Server for CompilerBuilderImpl {
-    fn target(
-        &mut self,
-        params: compiler_builder::TargetParams,
-        _result: compiler_builder::TargetResults,
-    ) -> Promise<(), ::capnp::Error> {
-        let target = pry!(pry!(params.get()).get_target());
-        let target_triple = pry!(rpc2internal::from_triple(&target));
-
-        Promise::ok(pry!(self.0.target(target_triple).map_err(|_| {
-            capnp::Error::failed("failed to set triple".to_string())
-        })))
+#[tonic::async_trait]
+impl CompilerBuilder for CompilerBuilderService {
+    async fn set_target(&self, request: Request<Triple>) -> Result<Response<Empty>, Status> {
+        unimplemented!();
     }
 
-    fn triple(
-        &mut self,
-        _triple: compiler_builder::TripleParams,
-        mut result: compiler_builder::TripleResults,
-    ) -> Promise<(), ::capnp::Error> {
-        let mut builder = result.get().init_triple();
-        internal2rpc::to_triple_builder(&mut builder, self.0.triple());
-
-        Promise::ok(())
+    async fn get_triple(&self, request: Request<Triple>) -> Result<Response<Triple>, Status> {
+        unimplemented!();
     }
 
-    fn build(
-        &mut self,
-        _: compiler_builder::BuildParams,
-        mut result: compiler_builder::BuildResults,
-    ) -> Promise<(), ::capnp::Error> {
-        let compiler = self.0.build();
-        result
-            .get()
-            .set_compiler(capnp_rpc::new_client(CompilerImpl::new(compiler)));
+    async fn set_settings(&self, request: Request<SetRequest>) -> Result<Response<Empty>, Status> {
+        unimplemented!();
+    }
 
-        Promise::ok(())
+    async fn enable_settings(
+        &self,
+        request: Request<EnableRequest>,
+    ) -> Result<Response<Empty>, Status> {
+        unimplemented!();
+    }
+
+    async fn get_settings(
+        &self,
+        request: Request<Empty>,
+    ) -> Result<Response<SettingsResponse>, Status> {
+        unimplemented!();
+    }
+
+    async fn build(&self, request: Request<Empty>) -> Result<Response<Empty>, Status> {
+        unimplemented!();
     }
 }

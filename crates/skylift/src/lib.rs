@@ -1,9 +1,13 @@
-pub mod skylift_capnp {
-    include!(concat!(env!("OUT_DIR"), "/schema/skylift_capnp.rs"));
+// pub mod skylift_capnp {
+//     include!(concat!(env!("OUT_DIR"), "/schema/skylift_capnp.rs"));
+// }
+
+pub mod skylift_grpc {
+    tonic::include_proto!("skylift");
 }
 
 pub mod client;
-mod convert;
+//mod convert;
 mod server;
 
 pub use server::run_server;
