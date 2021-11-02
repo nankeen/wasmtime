@@ -7,7 +7,7 @@ pub mod skylift_grpc {
 }
 
 pub mod client;
-//mod convert;
+mod convert;
 mod server;
 
 pub use server::run_server;
