@@ -1,39 +1,55 @@
-use crate::skylift_grpc::compiler_builder_server::CompilerBuilder;
-use crate::skylift_grpc::{Empty, EnableRequest, SetRequest, SettingsResponse, Triple};
+use crate::skylift_grpc::compiler_server::Compiler;
+use crate::skylift_grpc::{
+    BuildReponse, Empty, EnableRequest, NewBuilderResponse, SetRequest, SettingsResponse, Triple,
+};
+use std::collections::HashMap;
+use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
+#[derive(std::hash::Hash, Debug)]
+struct BuilderId(String);
+
 #[derive(Debug, Default)]
-pub(crate) struct CompilerBuilderService;
+pub(crate) struct CompilerService {
+    builders: Mutex<HashMap<BuilderId, Mutex<Box<dyn wasmtime_environ::CompilerBuilder>>>>,
+}
 
 #[tonic::async_trait]
-impl CompilerBuilder for CompilerBuilderService {
-    async fn set_target(&self, request: Request<Triple>) -> Result<Response<Empty>, Status> {
-        unimplemented!();
+impl Compiler for CompilerService {
+    async fn new_builder(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<NewBuilderResponse>, Status> {
+        Err(Status::unimplemented("not implemented"))
     }
 
-    async fn get_triple(&self, request: Request<Empty>) -> Result<Response<Triple>, Status> {
-        unimplemented!();
+    async fn set_target(&self, _request: Request<Triple>) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented("not implemented"))
     }
 
-    async fn set_settings(&self, request: Request<SetRequest>) -> Result<Response<Empty>, Status> {
-        unimplemented!();
+    async fn get_triple(&self, _request: Request<Empty>) -> Result<Response<Triple>, Status> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
+    async fn set_settings(&self, _request: Request<SetRequest>) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented("not implemented"))
     }
 
     async fn enable_settings(
         &self,
-        request: Request<EnableRequest>,
+        _request: Request<EnableRequest>,
     ) -> Result<Response<Empty>, Status> {
-        unimplemented!();
+        Err(Status::unimplemented("not implemented"))
     }
 
     async fn get_settings(
         &self,
-        request: Request<Empty>,
+        _request: Request<Empty>,
     ) -> Result<Response<SettingsResponse>, Status> {
-        unimplemented!();
+        Err(Status::unimplemented("not implemented"))
     }
 
-    async fn build(&self, request: Request<Empty>) -> Result<Response<Empty>, Status> {
-        unimplemented!();
+    async fn build(&self, _request: Request<Empty>) -> Result<Response<BuildReponse>, Status> {
+        Err(Status::unimplemented("not implemented"))
     }
 }

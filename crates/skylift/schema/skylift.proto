@@ -30,17 +30,26 @@ interface CompilerBuilder {
 }
 */
 
-service CompilerBuilder {
+service Compiler {
+  rpc NewBuilder(Empty) returns (NewBuilderResponse);
   // CompilerBuilder 
   rpc SetTarget(Triple) returns (Empty);
   rpc GetTriple(Empty) returns (Triple);
   rpc SetSettings(SetRequest) returns (Empty);
   rpc EnableSettings(EnableRequest) returns (Empty);
   rpc GetSettings(Empty) returns (SettingsResponse);
-  rpc Build(Empty) returns (Empty);
+  rpc Build(Empty) returns (BuildReponse);
 }
 
 message Empty {}
+
+message NewBuilderResponse {
+  string builder_id = 1;
+}
+
+message BuildReponse {
+  string compiler_id = 1;
+}
 
 message SetRequest {
   string name = 1;
