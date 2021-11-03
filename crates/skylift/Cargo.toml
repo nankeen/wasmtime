@@ -16,13 +16,8 @@ prost = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 tonic = "0.6"
 
-futures = "0.3.17"
-tokio = { version = "1.8.0", features = ["rt-multi-thread", "net", "macros", "sync"] }
-tokio-util = { version = "0.6.8", features = ["compat"] }
-
-capnp = "0.14.3"
-capnp-rpc = "0.14.1"
+tokio = { version = "1.13.0", features = ["rt-multi-thread", "net", "macros", "sync"] }
+tokio-util = { version = "0.6.9", features = ["compat"] }
 
 [build-dependencies]
 tonic-build = "0.6"
-capnpc = "0.14.4"

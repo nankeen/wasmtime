@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub mod rpc2internal {
     /**
      * This module converts Cap'n Proto RPC types into their respective internal representations
