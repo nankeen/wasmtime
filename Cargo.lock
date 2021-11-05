@@ -3108,6 +3108,7 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tonic-build",
+ "uuid",
  "wasmtime-cranelift",
  "wasmtime-environ",
 ]

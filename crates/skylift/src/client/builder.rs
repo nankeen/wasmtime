@@ -6,12 +6,13 @@
 use crate::{
     convert::internal2rpc,
     skylift_grpc::{compiler_client::CompilerClient, Empty, SetRequest},
+    BuilderId,
 };
 use anyhow::Result;
 use std::fmt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use tonic::transport::Channel;
+use tonic::{transport, Request};
 use wasmtime_environ::{CompilerBuilder, Setting};
 
 #[derive(Default)]
@@ -25,11 +26,12 @@ struct BuilderCache {
 /// `CompilerBuilder` service.
 #[derive(Clone)]
 pub struct Builder {
-    runtime: Arc<Runtime>,
+    builder_id: BuilderId,
+    cache: Arc<BuilderCache>,
     /// `client` - Handler for client session, according to tonic specs this should
     /// be cheap to clone as the underlying implementation uses mpsc channel.
-    client: CompilerClient<Channel>,
-    cache: Arc<BuilderCache>,
+    client: CompilerClient<transport::Channel>,
+    runtime: Arc<Runtime>,
 }
 
 pub fn builder() -> Box<dyn CompilerBuilder> {
@@ -40,12 +42,21 @@ pub fn builder() -> Box<dyn CompilerBuilder> {
 impl Builder {
     pub fn new(addr: &'static str) -> Result<Self> {
         let runtime = Runtime::new()?;
-        let client = runtime.block_on(CompilerClient::connect(addr))?;
+        let (client, builder_id) = runtime.block_on(async move {
+            let mut client = CompilerClient::connect(addr).await?;
+            let builder_id = client
+                .new_builder(Request::new(Empty {}))
+                .await?
+                .into_inner()
+                .into();
+            Ok::<_, anyhow::Error>((client, builder_id))
+        })?;
 
         Ok(Self {
-            runtime: Arc::new(runtime),
+            builder_id,
             cache: Arc::new(BuilderCache::default()),
             client,
+            runtime: Arc::new(runtime),
         })
     }
 }
@@ -64,7 +75,7 @@ impl CompilerBuilder for Builder {
         let mut client = self.client.clone();
         let request = internal2rpc::from_triple(&target);
         self.runtime
-            .block_on(client.set_target(tonic::Request::new(request)))?;
+            .block_on(client.set_target(Request::new(request)))?;
         Ok(())
     }
 
@@ -75,7 +86,7 @@ impl CompilerBuilder for Builder {
             value: value.to_string(),
         };
         self.runtime
-            .block_on(client.set_settings(tonic::Request::new(request)))?;
+            .block_on(client.set_settings(Request::new(request)))?;
         Ok(())
     }
 
@@ -86,7 +97,7 @@ impl CompilerBuilder for Builder {
     fn build(&self) -> Box<dyn wasmtime_environ::Compiler> {
         let mut client = self.client.clone();
         self.runtime
-            .block_on(client.get_triple(tonic::Request::new(Empty {})))
+            .block_on(client.get_triple(Request::new(Empty {})))
             .unwrap();
         unimplemented!("not implemented");
     }

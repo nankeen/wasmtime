@@ -11,6 +11,30 @@ mod convert;
 mod server;
 
 pub use server::run_server;
+use skylift_grpc::NewBuilderResponse;
+use uuid::Uuid;
+
+#[derive(std::hash::Hash, Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) struct BuilderId(Uuid);
+
+impl BuilderId {
+    pub(crate) fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
+impl std::ops::Deref for BuilderId {
+    type Target = Uuid;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<NewBuilderResponse> for BuilderId {
+    fn from(item: NewBuilderResponse) -> Self {
+        Self(Uuid::parse_str(&item.builder_id).unwrap())
+    }
+}
 
 #[cfg(test)]
 mod tests {

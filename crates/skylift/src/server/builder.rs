@@ -1,13 +1,13 @@
-use crate::skylift_grpc::compiler_server::Compiler;
-use crate::skylift_grpc::{
-    BuildReponse, Empty, EnableRequest, NewBuilderResponse, SetRequest, SettingsResponse, Triple,
+use crate::{
+    skylift_grpc::{
+        compiler_server::Compiler, BuildReponse, Empty, EnableRequest, NewBuilderResponse,
+        SetRequest, SettingsResponse, Triple,
+    },
+    BuilderId,
 };
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
-
-#[derive(std::hash::Hash, Debug)]
-struct BuilderId(String);
 
 #[derive(Debug, Default)]
 pub(crate) struct CompilerService {
@@ -20,7 +20,12 @@ impl Compiler for CompilerService {
         &self,
         _request: Request<Empty>,
     ) -> Result<Response<NewBuilderResponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
+        let id = BuilderId::new();
+        let mut builders = self.builders.lock().await;
+        builders.insert(id, Mutex::new(wasmtime_cranelift::builder()));
+        Ok(Response::new(NewBuilderResponse {
+            builder_id: id.to_simple().to_string(),
+        }))
     }
 
     async fn set_target(&self, _request: Request<Triple>) -> Result<Response<Empty>, Status> {
