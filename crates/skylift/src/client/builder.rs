@@ -12,10 +12,10 @@ use anyhow::Result;
 use std::fmt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use tonic::{transport, Request};
+use tonic::{codegen::InterceptedService, transport::Channel, Request};
 use wasmtime_environ::{CompilerBuilder, Setting};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct BuilderCache {
     pub triple: Option<target_lexicon::Triple>,
 }
@@ -26,11 +26,10 @@ struct BuilderCache {
 /// `CompilerBuilder` service.
 #[derive(Clone)]
 pub struct Builder {
-    builder_id: BuilderId,
-    cache: Arc<BuilderCache>,
+    cache: BuilderCache,
     /// `client` - Handler for client session, according to tonic specs this should
     /// be cheap to clone as the underlying implementation uses mpsc channel.
-    client: CompilerClient<transport::Channel>,
+    client: CompilerClient<InterceptedService<Channel, BuilderId>>,
     runtime: Arc<Runtime>,
 }
 
@@ -42,19 +41,29 @@ pub fn builder() -> Box<dyn CompilerBuilder> {
 impl Builder {
     pub fn new(addr: &'static str) -> Result<Self> {
         let runtime = Runtime::new()?;
-        let (client, builder_id) = runtime.block_on(async move {
-            let mut client = CompilerClient::connect(addr).await?;
-            let builder_id = client
+        let addr = addr.to_string();
+
+        // Create a new client
+        let client = runtime.block_on(async move {
+            // Connect to the endpoint
+            let channel = Channel::from_shared(addr)?.connect().await?;
+
+            // A temporary client to retrieve the builder id
+            let mut tmp_client = CompilerClient::new(channel.clone());
+            let builder_id: BuilderId = tmp_client
                 .new_builder(Request::new(Empty {}))
                 .await?
                 .into_inner()
                 .into();
-            Ok::<_, anyhow::Error>((client, builder_id))
+
+            // A new client that would include the builder id
+            let client = CompilerClient::with_interceptor(channel, builder_id);
+
+            Ok::<_, anyhow::Error>(client)
         })?;
 
         Ok(Self {
-            builder_id,
-            cache: Arc::new(BuilderCache::default()),
+            cache: BuilderCache::default(),
             client,
             runtime: Arc::new(runtime),
         })
@@ -76,6 +85,7 @@ impl CompilerBuilder for Builder {
         let request = internal2rpc::from_triple(&target);
         self.runtime
             .block_on(client.set_target(Request::new(request)))?;
+        self.cache.triple = Some(target);
         Ok(())
     }
 
