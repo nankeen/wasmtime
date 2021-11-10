@@ -7,11 +7,11 @@ use tonic::transport::Server;
 
 #[tokio::main]
 pub async fn run_server(addr: &str) -> Result<()> {
-    let compiler_server = builder::CompilerService::default();
-    let compiler_service = CompilerServer::new(compiler_server);
+    let compiler_service = builder::CompilerService::default();
+    let compiler_server = CompilerServer::new(compiler_service);
 
     Server::builder()
-        .add_service(compiler_service)
+        .add_service(compiler_server)
         .serve(addr.parse()?)
         .await?;
     Ok(())

@@ -1,17 +1,28 @@
-use crate::{BUILDER_ID_HEADER, BuilderId, convert::rpc2internal, skylift_grpc::{
-        compiler_server::Compiler, BuildReponse, Empty, EnableRequest, NewBuilderResponse,
+use crate::{
+    convert::{internal2rpc, rpc2internal},
+    skylift_grpc::{
+        compiler_server::Compiler, BuildResponse, Empty, EnableRequest, NewBuilderResponse,
         SetRequest, SettingsResponse, Triple,
-    }};
+    },
+    RemoteId, REMOTE_ID_HEADER,
+};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
-use wasmtime_environ::CompilerBuilder;
 
-type BuilderMapValue = Arc<Mutex<Box<dyn CompilerBuilder>>>;
+enum CompilerSession {
+    Build(SessionBuilder),
+    Compile(SessionCompiler),
+}
 
-#[derive(Debug, Default)]
+type SessionBuilder = Arc<Mutex<Box<dyn wasmtime_environ::CompilerBuilder>>>;
+type SessionCompiler = Arc<Mutex<Box<dyn wasmtime_environ::Compiler>>>;
+
+#[derive(Default)]
 pub(crate) struct CompilerService {
-    builders: Mutex<HashMap<BuilderId, BuilderMapValue>>,
+    // sessions: Mutex<HashMap<RemoteId, CompilerSession>>,
+    builders: Mutex<HashMap<RemoteId, SessionBuilder>>,
+    compilers: Mutex<HashMap<RemoteId, SessionCompiler>>,
 }
 
 #[tonic::async_trait]
@@ -20,10 +31,10 @@ impl Compiler for CompilerService {
         &self,
         _req: Request<Empty>,
     ) -> Result<Response<NewBuilderResponse>, Status> {
-        let id = BuilderId::new();
+        let id = RemoteId::new();
         let mut builders = self.builders.lock().await;
         let response = Response::new(NewBuilderResponse {
-            builder_id: id.to_string(),
+            remote_id: id.to_string(),
         });
 
         builders.insert(id, Arc::new(Mutex::new(wasmtime_cranelift::builder())));
@@ -32,9 +43,9 @@ impl Compiler for CompilerService {
 
     async fn set_target(&self, req: Request<Triple>) -> Result<Response<Empty>, Status> {
         // Retrieve builder id from metadata (headers)
-        let builder_id = req
+        let remote_id = req
             .metadata()
-            .get(BUILDER_ID_HEADER)
+            .get(REMOTE_ID_HEADER)
             .map(|id_meta| id_meta.to_str().ok())
             .flatten()
             .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
@@ -48,7 +59,7 @@ impl Compiler for CompilerService {
             .builders
             .lock()
             .await
-            .get(&builder_id)
+            .get(&remote_id)
             .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
             .clone();
 
@@ -61,15 +72,34 @@ impl Compiler for CompilerService {
         Ok(Response::new(Empty {}))
     }
 
-    async fn get_triple(&self, _req: Request<Empty>) -> Result<Response<Triple>, Status> {
-        Err(Status::unimplemented("not implemented"))
+    async fn get_triple(&self, req: Request<Empty>) -> Result<Response<Triple>, Status> {
+        // Retrieve builder id from metadata (headers)
+        let remote_id = req
+            .metadata()
+            .get(REMOTE_ID_HEADER)
+            .map(|id_meta| id_meta.to_str().ok())
+            .flatten()
+            .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
+            .into();
+
+        let builder = self
+            .builders
+            .lock()
+            .await
+            .get(&remote_id)
+            .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
+            .clone();
+
+        let builder_lock = builder.lock().await;
+
+        Ok(Response::new(internal2rpc::from_triple(builder_lock.triple())))
     }
 
     async fn set_settings(&self, req: Request<SetRequest>) -> Result<Response<Empty>, Status> {
         // Retrieve builder id from metadata (headers)
-        let builder_id = req
+        let remote_id = req
             .metadata()
-            .get(BUILDER_ID_HEADER)
+            .get(REMOTE_ID_HEADER)
             .map(|id_meta| id_meta.to_str().ok())
             .flatten()
             .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
@@ -81,7 +111,7 @@ impl Compiler for CompilerService {
             .builders
             .lock()
             .await
-            .get(&builder_id)
+            .get(&remote_id)
             .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
             .clone();
 
@@ -108,7 +138,34 @@ impl Compiler for CompilerService {
         Err(Status::unimplemented("not implemented"))
     }
 
-    async fn build(&self, _req: Request<Empty>) -> Result<Response<BuildReponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
+    async fn build(&self, req: Request<Empty>) -> Result<Response<BuildResponse>, Status> {
+        // Retrieve builder id from metadata (headers)
+        let remote_id = req
+            .metadata()
+            .get(REMOTE_ID_HEADER)
+            .map(|id_meta| id_meta.to_str().ok())
+            .flatten()
+            .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
+            .into();
+
+        // Get the builder to build a compiler according to the settings so far
+        let builder = self
+            .builders
+            .lock()
+            .await
+            .get(&remote_id)
+            .ok_or_else(|| Status::failed_precondition("invalid builder id"))?
+            .clone();
+
+        let compiler = builder.lock().await.build();
+
+        // Save the compiler created into the session
+        let mut compilers = self.compilers.lock().await;
+        let response = Response::new(BuildResponse {
+            remote_id: remote_id.to_string(),
+        });
+
+        compilers.insert(remote_id, Arc::new(Mutex::new(compiler)));
+        Ok(response)
     }
 }

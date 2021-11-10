@@ -3101,6 +3101,7 @@ dependencies = [
  "anyhow",
  "cranelift-codegen",
  "cranelift-wasm",
+ "object",
  "prost",
  "serde",
  "target-lexicon",

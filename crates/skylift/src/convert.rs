@@ -3,7 +3,6 @@
 //!
 //! If there is a better way to do this let me know. I've experimented with PROST macros but
 //! eventually decided to not as it requires tampering with `target_lexicon` types.
-#![allow(dead_code)]
 
 pub mod rpc2internal {
     /**
@@ -21,7 +20,7 @@ pub mod rpc2internal {
         let environment = from_environment(Environment::from_i32(triple.environment)?);
         let operating_system =
             from_operating_system(OperatingSystem::from_i32(triple.operating_system)?);
-        let vendor = from_vendor(Vendor::from_i32(triple.environment)?);
+        let vendor = from_vendor(Vendor::from_i32(triple.vendor)?);
 
         Some(target_lexicon::Triple {
             architecture,

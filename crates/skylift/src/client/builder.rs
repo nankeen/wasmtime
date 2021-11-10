@@ -4,11 +4,12 @@
 //! well as providing a function to return the default configuration to build.
 
 use crate::{
-    convert::internal2rpc,
+    client::Compiler,
+    convert::{internal2rpc, rpc2internal},
     skylift_grpc::{compiler_client::CompilerClient, Empty, SetRequest},
-    BuilderId,
+    RemoteId,
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::fmt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -29,7 +30,7 @@ pub struct Builder {
     cache: BuilderCache,
     /// `client` - Handler for client session, according to tonic specs this should
     /// be cheap to clone as the underlying implementation uses mpsc channel.
-    client: CompilerClient<InterceptedService<Channel, BuilderId>>,
+    client: CompilerClient<InterceptedService<Channel, RemoteId>>,
     runtime: Arc<Runtime>,
 }
 
@@ -44,26 +45,31 @@ impl Builder {
         let addr = addr.to_string();
 
         // Create a new client
-        let client = runtime.block_on(async move {
+        let (triple, client) = runtime.block_on(async move {
             // Connect to the endpoint
             let channel = Channel::from_shared(addr)?.connect().await?;
 
             // A temporary client to retrieve the builder id
             let mut tmp_client = CompilerClient::new(channel.clone());
-            let builder_id: BuilderId = tmp_client
+            let builder_id: RemoteId = tmp_client
                 .new_builder(Request::new(Empty {}))
                 .await?
                 .into_inner()
                 .into();
 
             // A new client that would include the builder id
-            let client = CompilerClient::with_interceptor(channel, builder_id);
+            let mut client = CompilerClient::with_interceptor(channel, builder_id);
 
-            Ok::<_, anyhow::Error>(client)
+            let triple = rpc2internal::from_triple(
+                client.get_triple(Request::new(Empty {})).await?.get_ref(),
+            )
+            .ok_or(anyhow!("can't retrieve triple"))?;
+
+            Ok::<_, anyhow::Error>((triple, client))
         })?;
 
         Ok(Self {
-            cache: BuilderCache::default(),
+            cache: BuilderCache { triple: Some(triple) },
             client,
             runtime: Arc::new(runtime),
         })
@@ -107,9 +113,14 @@ impl CompilerBuilder for Builder {
     fn build(&self) -> Box<dyn wasmtime_environ::Compiler> {
         let mut client = self.client.clone();
         self.runtime
-            .block_on(client.get_triple(Request::new(Empty {})))
+            .block_on(client.build(Request::new(Empty {})))
             .unwrap();
-        unimplemented!("not implemented");
+
+        Box::new(Compiler::new(
+            self.client.clone(),
+            self.runtime.clone(),
+            self.triple().clone(),
+        ))
     }
 
     fn settings(&self) -> Vec<Setting> {

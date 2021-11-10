@@ -15,46 +15,46 @@ use skylift_grpc::NewBuilderResponse;
 use tonic::{metadata::MetadataValue, service::Interceptor, Request, Status};
 use uuid::Uuid;
 
-pub const BUILDER_ID_HEADER: &str = "builder_id";
+pub const REMOTE_ID_HEADER: &str = "remote_id";
 
 #[derive(std::hash::Hash, Debug, PartialEq, Eq, Clone)]
-pub(crate) struct BuilderId(String);
+pub(crate) struct RemoteId(String);
 
-impl BuilderId {
+impl RemoteId {
     pub(crate) fn new() -> Self {
         Self(Uuid::new_v4().to_hyphenated_ref().to_string())
     }
 }
 
-impl std::ops::Deref for BuilderId {
+impl std::ops::Deref for RemoteId {
     type Target = String;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<String> for BuilderId {
+impl From<String> for RemoteId {
     fn from(item: String) -> Self {
         Self(item)
     }
 }
 
-impl From<&str> for BuilderId {
+impl From<&str> for RemoteId {
     fn from(item: &str) -> Self {
         Self(item.to_string())
     }
 }
 
-impl From<NewBuilderResponse> for BuilderId {
+impl From<NewBuilderResponse> for RemoteId {
     fn from(item: NewBuilderResponse) -> Self {
-        item.builder_id.into()
+        item.remote_id.into()
     }
 }
 
-impl Interceptor for BuilderId {
+impl Interceptor for RemoteId {
     fn call(&mut self, mut req: Request<()>) -> Result<Request<()>, Status> {
         req.metadata_mut().insert(
-            BUILDER_ID_HEADER,
+            REMOTE_ID_HEADER,
             MetadataValue::from_str(&self.0)
                 .map_err(|_| Status::internal("invalid metadata value"))?,
         );
