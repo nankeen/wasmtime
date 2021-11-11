@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/any.proto";
+
 package skylift;
 
 /*
@@ -39,6 +41,116 @@ service Compiler {
   rpc EnableSettings(EnableRequest) returns (Empty);
   rpc GetSettings(Empty) returns (SettingsResponse);
   rpc Build(Empty) returns (BuildResponse);
+
+  // Compiler
+  // rpc CompileFunction(CompileFunctionRequest) returns CompiledFunction;
+  // rpc EmitObj(EmitObjRequest) returns EmitObjectResponse;
+  // rpc EmitTrampolineObj(EmitTrampolineObjRequest) returns EmitTrampolineObjResponse;
+  // rpc GetFlags(Empty) returns FlagsResponse;
+  // rpc GetISAFlags(Empty) returns GetISAFlagsResponse;
+  rpc SetTranslations(ModuleTranslation) returns (Empty);
+}
+
+/*
+    /// Module information.
+    pub module: Module,
+
+    /// References to the function bodies.
+    pub function_body_inputs: PrimaryMap<DefinedFuncIndex, FunctionBodyData<'data>>,
+
+    /// The set of defined functions within this module which are "possibly
+    /// exported" which means that the host can possibly call them. This
+    /// includes functions such as:
+    ///
+    /// * Exported functions
+    /// * Functions in element segments
+    /// * Functions via `ref.func` instructions
+    ///
+    /// This set is used to determine the set of type signatures that need
+    /// trampolines for the host to call into.
+    pub escaped_funcs: HashSet<DefinedFuncIndex>,
+
+    /// A list of type signatures which are considered exported from this
+    /// module, or those that can possibly be called. This list is sorted, and
+    /// trampolines for each of these signatures are required.
+    pub exported_signatures: Vec<SignatureIndex>,
+
+    /// DWARF debug information, if enabled, parsed from the module.
+    pub debuginfo: DebugInfoData<'data>,
+
+    /// Set if debuginfo was found but it was not parsed due to `Tunables`
+    /// configuration.
+    pub has_unparsed_debuginfo: bool,
+
+    /// List of data segments found in this module which should be concatenated
+    /// together for the final compiled artifact.
+    ///
+    /// These data segments, when concatenated, are indexed by the
+    /// `MemoryInitializer` type.
+    pub data: Vec<Cow<'data, [u8]>>,
+
+    /// Total size of all data pushed onto `data` so far.
+    total_data: u32,
+
+    /// List of passive element segments found in this module which will get
+    /// concatenated for the final artifact.
+    pub passive_data: Vec<&'data [u8]>,
+
+    /// Total size of all passive data pushed into `passive_data` so far.
+    total_passive_data: u32,
+
+    /// When we're parsing the code section this will be incremented so we know
+    /// which function is currently being defined.
+    code_index: u32,
+
+    implicit_instances: HashMap<&'data str, InstanceIndex>,
+
+    /// The artifacts which are needed from the parent module when this module
+    /// is created. This is used to insert into `Initializer::CreateModule` when
+    /// this module is defined in the parent.
+    creation_artifacts: Vec<usize>,
+
+    /// Same as `creation_artifacts`, but for modules instead of artifacts.
+    creation_modules: Vec<ModuleUpvar>,
+
+message EntityIndex {
+  enum EntityIndexVariant {
+    FUNCTION = 0;
+    TABLE = 1;
+    MEMORY = 2;
+    GLOBAL = 3;
+    MODULE = 4;
+    INSTANCE = 5;
+  }
+  EntityIndexVariant variant = 1;
+  uint32 index = 2;
+}
+
+message Initializer {
+  message Import {
+    string name = 1;
+    optional string field = 2;
+    EntityIndex index = 3;
+  }
+  message AliasInstanceExport {
+    uint32 module = 1;
+    map 
+  }
+}
+*/
+
+message DebugInfoData {
+}
+
+message ModuleTranslation {
+  // Use serde serialize
+  google.protobuf.Any module = 1;
+  repeated uint32 escaped_funcs = 2;
+  repeated uint32 exported_signatures = 3;
+  // Ommitted fields
+  // DebugInfoData debuginfo = 4;
+  // bool has_unparsed_debuginfo = 4;
+
 }
 
 message Empty {}

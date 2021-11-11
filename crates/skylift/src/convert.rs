@@ -12,7 +12,13 @@ pub mod rpc2internal {
     use crate::skylift_grpc::{
         triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
         Triple,
+        ModuleTranslation
     };
+
+    // TODO: Convert RPC module translation to internal module translation
+    pub(crate) fn from_module_translation<'a>(translation: &ModuleTranslation) -> wasmtime_environ::ModuleTranslation<'a> {
+        wasmtime_environ::ModuleTranslation::default()
+    }
 
     pub(crate) fn from_triple(triple: &Triple) -> Option<target_lexicon::Triple> {
         let architecture = from_architecture(Architecture::from_i32(triple.architecture)?);

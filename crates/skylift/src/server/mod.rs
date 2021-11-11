@@ -1,4 +1,4 @@
-pub(crate) mod builder;
+pub(crate) mod service;
 // pub(crate) mod compiler;
 
 use crate::skylift_grpc::compiler_server::CompilerServer;
@@ -7,7 +7,7 @@ use tonic::transport::Server;
 
 #[tokio::main]
 pub async fn run_server(addr: &str) -> Result<()> {
-    let compiler_service = builder::CompilerService::default();
+    let compiler_service = service::CompilerService::default();
     let compiler_server = CompilerServer::new(compiler_service);
 
     Server::builder()

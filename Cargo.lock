@@ -3103,6 +3103,7 @@ dependencies = [
  "cranelift-wasm",
  "object",
  "prost",
+ "prost-types",
  "serde",
  "target-lexicon",
  "tokio",

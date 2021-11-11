@@ -14,6 +14,7 @@ wasmtime-environ = { path = "../environ", version = "0.30.0" }
 wasmtime-cranelift = { path = "../cranelift", version = "0.30.0" }
 
 prost = "0.9"
+prost-types = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 tonic = "0.6"
 
