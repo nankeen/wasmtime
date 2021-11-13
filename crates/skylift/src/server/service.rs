@@ -1,194 +1,121 @@
+use super::CompilerSession;
 use crate::{
     convert::{internal2rpc, rpc2internal},
     skylift_grpc::{
-        compiler_server::Compiler, BuildResponse, Empty, EnableRequest, ModuleTranslation,
-        NewBuilderResponse, SetRequest, SettingsResponse, Triple,
+        compiler_server::Compiler, BuildResponse, CompileFunctionRequest, CompiledFunction,
+        EnableRequest, FlagMap, ModuleTranslation, NewBuilderResponse, SetRequest,
+        SettingsResponse, Triple,
     },
     RemoteId, REMOTE_ID_HEADER,
 };
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
-
-enum CompilerSession {
-    Build(Box<dyn wasmtime_environ::CompilerBuilder>),
-    Compile {
-        compiler: Box<dyn wasmtime_environ::Compiler>,
-        module_translation: wasmtime_environ::ModuleTranslation<'static>,
-    },
-}
 
 #[derive(Default)]
 pub(crate) struct CompilerService {
-    sessions: Mutex<HashMap<RemoteId, Arc<Mutex<CompilerSession>>>>,
-    // builders: Mutex<HashMap<RemoteId, SessionBuilder>>,
-    // compilers: Mutex<HashMap<RemoteId, SessionCompiler>>,
+    sessions: RwLock<HashMap<RemoteId, Arc<RwLock<CompilerSession>>>>,
+}
+
+fn get_remote_id<T>(req: &Request<T>) -> Result<RemoteId, Status> {
+    // Retrieve builder id from metadata (headers)
+    Ok(req
+        .metadata()
+        .get(REMOTE_ID_HEADER)
+        .map(|id_meta| id_meta.to_str().ok())
+        .flatten()
+        .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
+        .into())
+}
+
+impl CompilerService {
+    async fn get_session(
+        &self,
+        remote_id: &RemoteId,
+    ) -> Result<Arc<RwLock<CompilerSession>>, Status> {
+        // Acquire session and set target
+        Ok(self
+            .sessions
+            .read()
+            .await
+            .get(remote_id)
+            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
+            .clone())
+    }
 }
 
 #[tonic::async_trait]
 impl Compiler for CompilerService {
-    async fn new_builder(
-        &self,
-        _req: Request<Empty>,
-    ) -> Result<Response<NewBuilderResponse>, Status> {
+    async fn new_builder(&self, _req: Request<()>) -> Result<Response<NewBuilderResponse>, Status> {
         let id = RemoteId::new();
-        let mut sessions = self.sessions.lock().await;
+        let mut sessions = self.sessions.write().await;
         let response = Response::new(NewBuilderResponse {
             remote_id: id.to_string(),
         });
 
         sessions.insert(
             id,
-            Arc::new(Mutex::new(CompilerSession::Build(wasmtime_cranelift::builder()))),
+            Arc::new(RwLock::new(CompilerSession::Build(
+                wasmtime_cranelift::builder(),
+            ))),
         );
         Ok(response)
     }
 
-    async fn set_target(&self, req: Request<Triple>) -> Result<Response<Empty>, Status> {
-        // Retrieve builder id from metadata (headers)
-        let remote_id = req
-            .metadata()
-            .get(REMOTE_ID_HEADER)
-            .map(|id_meta| id_meta.to_str().ok())
-            .flatten()
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .into();
-
+    async fn set_target(&self, req: Request<Triple>) -> Result<Response<()>, Status> {
         let triple = rpc2internal::from_triple(req.get_ref())
             .ok_or_else(|| Status::invalid_argument("bad triple provided"))?;
 
-        // Acquire session and set target
-        let session_lock = self
-            .sessions
-            .lock()
-            .await
-            .get(&remote_id)
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .clone();
-        let mut session = session_lock
-            .lock()
-            .await;
+        // Retrieve builder id from metadata (headers)
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let mut session = session_lock.write().await;
 
-        match &mut *session {
-            CompilerSession::Build(builder) => {
-                builder
-                    .target(triple)
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
-                Ok(Response::new(Empty {}))
-            }
-            _ => Err(Status::failed_precondition("session is in invalid state"))
-        }
+        session.map_builder_mut(|builder| {
+            builder
+                .target(triple)
+                .map_err(|e| Status::internal(e.to_string()))
+                .map(Response::new)
+        })?
     }
 
-    async fn get_triple(&self, req: Request<Empty>) -> Result<Response<Triple>, Status> {
+    async fn get_triple(&self, req: Request<()>) -> Result<Response<Triple>, Status> {
         // Retrieve builder id from metadata (headers)
-        let remote_id = req
-            .metadata()
-            .get(REMOTE_ID_HEADER)
-            .map(|id_meta| id_meta.to_str().ok())
-            .flatten()
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .into();
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let session = session_lock.read().await;
 
-        let session_lock = self
-            .sessions
-            .lock()
-            .await
-            .get(&remote_id)
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .clone();
-        let session = session_lock
-            .lock()
-            .await;
-
-        match &*session {
-            CompilerSession::Build(builder) => {
-                Ok(Response::new(internal2rpc::from_triple(
-                    builder.triple(),
-                )))
-            }
-            _ => Err(Status::failed_precondition("session is in invalid state"))
-        }
+        session.map_builder(|builder| Response::new(internal2rpc::from_triple(builder.triple())))
     }
 
-    async fn set_settings(&self, req: Request<SetRequest>) -> Result<Response<Empty>, Status> {
-        // Retrieve builder id from metadata (headers)
-        let remote_id = req
-            .metadata()
-            .get(REMOTE_ID_HEADER)
-            .map(|id_meta| id_meta.to_str().ok())
-            .flatten()
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .into();
-
+    async fn set_settings(&self, req: Request<SetRequest>) -> Result<Response<()>, Status> {
         let settings = req.get_ref();
 
-        let session_lock = self
-            .sessions
-            .lock()
-            .await
-            .get(&remote_id)
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .clone();
-        let mut session = session_lock
-            .lock()
-            .await;
-
-        match &mut *session {
-            CompilerSession::Build(builder) => {
-                builder
-                    .set(&settings.name, &settings.value)
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
-                Ok(Response::new(Empty {}))
-            }
-            _ => Err(Status::failed_precondition("session is in invalid state"))
-        }
-    }
-
-    async fn enable_settings(
-        &self,
-        _req: Request<EnableRequest>,
-    ) -> Result<Response<Empty>, Status> {
-        Err(Status::unimplemented("not implemented"))
-    }
-
-    async fn get_settings(
-        &self,
-        _req: Request<Empty>,
-    ) -> Result<Response<SettingsResponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
-    }
-
-    async fn build(&self, req: Request<Empty>) -> Result<Response<BuildResponse>, Status> {
         // Retrieve builder id from metadata (headers)
-        let remote_id = req
-            .metadata()
-            .get(REMOTE_ID_HEADER)
-            .map(|id_meta| id_meta.to_str().ok())
-            .flatten()
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .into();
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let mut session = session_lock.write().await;
 
+        session.map_builder_mut(|builder| {
+            builder
+                .set(&settings.name, &settings.value)
+                .map_err(|e| Status::internal(e.to_string()))
+                .map(Response::new)
+        })?
+    }
+
+    async fn enable_settings(&self, _req: Request<EnableRequest>) -> Result<Response<()>, Status> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
+    async fn get_settings(&self, _req: Request<()>) -> Result<Response<SettingsResponse>, Status> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
+    async fn build(&self, req: Request<()>) -> Result<Response<BuildResponse>, Status> {
         // Get the builder to build a compiler according to the settings so far
-        let session_lock = self
-            .sessions
-            .lock()
-            .await
-            .get(&remote_id)
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .clone();
-        let mut session = session_lock
-            .lock()
-            .await;
+        let remote_id = get_remote_id(&req)?;
+        let session_lock = self.get_session(&remote_id).await?;
+        let mut session = session_lock.write().await;
 
-        let compiler = match &*session {
-            CompilerSession::Build(builder) => {
-                Ok(builder.build())
-            }
-            _ => Err(Status::failed_precondition("session is in invalid state"))
-        }?;
+        let compiler = session.map_builder_mut(|builder| builder.build())?;
 
         let response = Response::new(BuildResponse {
             remote_id: remote_id.to_string(),
@@ -196,46 +123,54 @@ impl Compiler for CompilerService {
 
         *session = CompilerSession::Compile {
             compiler,
-            module_translation: wasmtime_environ::ModuleTranslation::default(),
+            module_translation: None,
         };
 
         Ok(response)
     }
 
-    async fn set_translations(
+    async fn set_translation(
         &self,
         req: Request<ModuleTranslation>,
-    ) -> Result<Response<Empty>, Status> {
+    ) -> Result<Response<()>, Status> {
         // Retrieve builder id from metadata (headers)
-        let remote_id = req
-            .metadata()
-            .get(REMOTE_ID_HEADER)
-            .map(|id_meta| id_meta.to_str().ok())
-            .flatten()
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .into();
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let mut session = session_lock.write().await;
 
-        // Get the builder to build a compiler according to the settings so far
-        let session_lock = self
-            .sessions
-            .lock()
-            .await
-            .get(&remote_id)
-            .ok_or_else(|| Status::failed_precondition("invalid remote id"))?
-            .clone();
-        let mut session = session_lock
-            .lock()
-            .await;
+        session.map_compiler_mut(|_, module_translation| {
+            let new_translation = req.into_inner();
+            *module_translation = Some(Box::new(
+                rpc2internal::from_module_translation(&new_translation)
+                    .ok_or_else(|| Status::invalid_argument("bad module provided"))?,
+            ));
+            Ok::<_, Status>(Response::new(()))
+        })?
+    }
 
-        match &mut *session {
-            CompilerSession::Compile {
-                module_translation, ..
-            } => {
-                let new_translation = req.into_inner();
-                *module_translation = rpc2internal::from_module_translation(&new_translation);
-                Ok(Response::new(Empty {}))
-            }
-            _ => Err(Status::failed_precondition("session is in invalid state"))
-        }
+    async fn get_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {
+        // Retrieve builder id from metadata (headers)
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let session = session_lock.read().await;
+
+        session.map_compiler(|compiler, _| {
+            Response::new(internal2rpc::from_flag_map(&compiler.flags()))
+        })
+    }
+
+    async fn get_isa_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {
+        // Retrieve builder id from metadata (headers)
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let session = session_lock.read().await;
+
+        session.map_compiler(|compiler, _| {
+            Response::new(internal2rpc::from_flag_map(&compiler.isa_flags()))
+        })
+    }
+
+    async fn compile_function(
+        &self,
+        req: Request<CompileFunctionRequest>,
+    ) -> Result<Response<CompiledFunction>, Status> {
+        Err(Status::unimplemented("compile function not implemented"))
     }
 }

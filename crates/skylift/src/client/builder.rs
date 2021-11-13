@@ -6,10 +6,10 @@
 use crate::{
     client::Compiler,
     convert::{internal2rpc, rpc2internal},
-    skylift_grpc::{compiler_client::CompilerClient, Empty, SetRequest},
+    skylift_grpc::{compiler_client::CompilerClient, SetRequest},
     RemoteId,
 };
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use std::fmt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -52,7 +52,7 @@ impl Builder {
             // A temporary client to retrieve the builder id
             let mut tmp_client = CompilerClient::new(channel.clone());
             let builder_id: RemoteId = tmp_client
-                .new_builder(Request::new(Empty {}))
+                .new_builder(Request::new(()))
                 .await?
                 .into_inner()
                 .into();
@@ -60,16 +60,17 @@ impl Builder {
             // A new client that would include the builder id
             let mut client = CompilerClient::with_interceptor(channel, builder_id);
 
-            let triple = rpc2internal::from_triple(
-                client.get_triple(Request::new(Empty {})).await?.get_ref(),
-            )
-            .ok_or(anyhow!("can't retrieve triple"))?;
+            let triple =
+                rpc2internal::from_triple(client.get_triple(Request::new(())).await?.get_ref())
+                    .ok_or_else(|| anyhow!("can't retrieve triple"))?;
 
             Ok::<_, anyhow::Error>((triple, client))
         })?;
 
         Ok(Self {
-            cache: BuilderCache { triple: Some(triple) },
+            cache: BuilderCache {
+                triple: Some(triple),
+            },
             client,
             runtime: Arc::new(runtime),
         })
@@ -113,7 +114,7 @@ impl CompilerBuilder for Builder {
     fn build(&self) -> Box<dyn wasmtime_environ::Compiler> {
         let mut client = self.client.clone();
         self.runtime
-            .block_on(client.build(Request::new(Empty {})))
+            .block_on(client.build(Request::new(())))
             .unwrap();
 
         Box::new(Compiler::new(

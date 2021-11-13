@@ -3099,6 +3099,7 @@ name = "skylift"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "cranelift-codegen",
  "cranelift-wasm",
  "object",

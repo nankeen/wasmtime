@@ -1,8 +1,10 @@
 pub(crate) mod service;
+mod session;
 // pub(crate) mod compiler;
 
 use crate::skylift_grpc::compiler_server::CompilerServer;
 use anyhow::Result;
+use session::CompilerSession;
 use tonic::transport::Server;
 
 #[tokio::main]

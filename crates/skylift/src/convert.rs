@@ -5,19 +5,38 @@
 //! eventually decided to not as it requires tampering with `target_lexicon` types.
 
 pub mod rpc2internal {
+    use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
+
     /**
      * This module converts Cap'n Proto RPC types into their respective internal representations
      * For conversion from internal representation, see `internal2rpc`.
      */
     use crate::skylift_grpc::{
         triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-        Triple,
-        ModuleTranslation
+        ModuleTranslation, Triple,
     };
+    use std::{collections::HashSet, iter::FromIterator};
 
     // TODO: Convert RPC module translation to internal module translation
-    pub(crate) fn from_module_translation<'a>(translation: &ModuleTranslation) -> wasmtime_environ::ModuleTranslation<'a> {
-        wasmtime_environ::ModuleTranslation::default()
+    pub(crate) fn from_module_translation<'a>(
+        translation: &ModuleTranslation,
+    ) -> Option<wasmtime_environ::ModuleTranslation<'a>> {
+        let mut internal = wasmtime_environ::ModuleTranslation::default();
+        internal.escaped_funcs = HashSet::from_iter(
+            translation
+                .escaped_funcs
+                .iter()
+                .copied()
+                .map(DefinedFuncIndex::from_u32),
+        );
+        internal.exported_signatures = translation
+            .exported_signatures
+            .iter()
+            .copied()
+            .map(SignatureIndex::from_u32)
+            .collect();
+        internal.module = bincode::deserialize(&translation.module.as_ref()?.value).ok()?;
+        Some(internal)
     }
 
     pub(crate) fn from_triple(triple: &Triple) -> Option<target_lexicon::Triple> {
@@ -339,10 +358,49 @@ pub mod rpc2internal {
 }
 
 pub mod internal2rpc {
+    use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
+    use prost_types::Any;
+    use wasmtime_environ::FlagValue;
+
     use crate::skylift_grpc::{
         triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-        Triple,
+        FlagMap, ModuleTranslation, Triple,
     };
+    use std::collections::BTreeMap;
+
+    pub(crate) fn from_flag_map(flag_map: &BTreeMap<String, FlagValue>) -> FlagMap {
+        FlagMap {
+            flags: bincode::serialize(&flag_map).ok().map(|value| Any {
+                value,
+                ..Default::default()
+            }),
+        }
+    }
+
+    pub(crate) fn from_module_translation(
+        translation: &wasmtime_environ::ModuleTranslation,
+    ) -> ModuleTranslation {
+        ModuleTranslation {
+            module: bincode::serialize(&translation.module)
+                .ok()
+                .map(|value| Any {
+                    value,
+                    ..Default::default()
+                }),
+            escaped_funcs: translation
+                .escaped_funcs
+                .iter()
+                .copied()
+                .map(DefinedFuncIndex::as_u32)
+                .collect(),
+            exported_signatures: translation
+                .exported_signatures
+                .iter()
+                .copied()
+                .map(SignatureIndex::as_u32)
+                .collect(),
+        }
+    }
 
     pub(crate) fn from_triple(triple: &target_lexicon::Triple) -> Triple {
         let architecture = from_architecture(&triple.architecture) as i32;

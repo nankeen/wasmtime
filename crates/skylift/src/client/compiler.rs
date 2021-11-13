@@ -1,11 +1,11 @@
-use crate::skylift_grpc::compiler_client::CompilerClient;
 use crate::RemoteId;
+use crate::{convert::internal2rpc, skylift_grpc::compiler_client::CompilerClient};
 use anyhow::Result;
 use cranelift_wasm::{DefinedFuncIndex, WasmFuncType};
 use object::write::Object;
 use std::{any::Any, collections::BTreeMap, sync::Arc};
-use tokio::runtime::Runtime;
-use tonic::{codegen::InterceptedService, transport::Channel};
+use tokio::{runtime::Runtime, sync::RwLock};
+use tonic::{codegen::InterceptedService, transport::Channel, Request};
 use wasmtime_environ::{
     CompileError, FlagValue, FunctionBodyData, FunctionInfo, ModuleTranslation, PrimaryMap,
     Trampoline, Tunables, TypeTables,
@@ -27,6 +27,7 @@ pub struct Compiler {
     /// be cheap to clone as the underlying implementation uses mpsc channel.
     client: CompilerClient<InterceptedService<Channel, RemoteId>>,
     runtime: Arc<Runtime>,
+    translation_set: Arc<RwLock<bool>>,
 }
 
 impl Compiler {
@@ -38,22 +39,43 @@ impl Compiler {
         Self {
             client,
             runtime,
+            translation_set: Arc::new(RwLock::new(false)),
             cache: CompilerCache {
-                triple: Some(triple)
-            }
+                triple: Some(triple),
+            },
         }
+    }
+
+    async fn set_translation(&self, translation: &ModuleTranslation<'_>) -> Result<()> {
+        if !*self.translation_set.read().await {
+            let mut client = self.client.clone();
+            client
+                .set_translation(Request::new(internal2rpc::from_module_translation(
+                    translation,
+                )))
+                .await?;
+
+            *self.translation_set.write().await = true;
+        }
+        Ok(())
     }
 }
 
 impl wasmtime_environ::Compiler for Compiler {
     fn compile_function(
         &self,
-        _translation: &ModuleTranslation<'_>,
+        translation: &ModuleTranslation<'_>,
         _index: DefinedFuncIndex,
         _data: FunctionBodyData<'_>,
         _tunables: &Tunables,
         _types: &TypeTables,
     ) -> Result<Box<dyn Any + Send>, CompileError> {
+        self.runtime
+            .block_on(async move {
+                self.set_translation(translation).await?;
+                Ok::<_, anyhow::Error>(())
+            })
+            .map_err(|err| CompileError::Codegen(err.to_string()))?;
         unimplemented!("compile_function is not implemented")
     }
 
@@ -82,10 +104,22 @@ impl wasmtime_environ::Compiler for Compiler {
     }
 
     fn flags(&self) -> BTreeMap<String, FlagValue> {
-        unimplemented!("flags is not implemented")
+        let mut client = self.client.clone();
+        let flags = self
+            .runtime
+            .block_on(client.get_flags(Request::new(())))
+            .unwrap()
+            .into_inner();
+        bincode::deserialize(&flags.flags.expect("could not get flags").value).unwrap()
     }
 
     fn isa_flags(&self) -> BTreeMap<String, FlagValue> {
-        unimplemented!("isa_flags is not implemented")
+        let mut client = self.client.clone();
+        let flags = self
+            .runtime
+            .block_on(client.get_isa_flags(Request::new(())))
+            .unwrap()
+            .into_inner();
+        bincode::deserialize(&flags.flags.expect("could not get isa flags").value).unwrap()
     }
 }
