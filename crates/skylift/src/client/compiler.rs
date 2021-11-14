@@ -1,5 +1,8 @@
 use crate::RemoteId;
-use crate::{convert::internal2rpc, skylift_grpc::compiler_client::CompilerClient};
+use crate::{
+    convert::{internal2rpc, rpc2internal},
+    skylift_grpc::compiler_client::CompilerClient,
+};
 use anyhow::Result;
 use cranelift_wasm::{DefinedFuncIndex, WasmFuncType};
 use object::write::Object;
@@ -65,18 +68,25 @@ impl wasmtime_environ::Compiler for Compiler {
     fn compile_function(
         &self,
         translation: &ModuleTranslation<'_>,
-        _index: DefinedFuncIndex,
-        _data: FunctionBodyData<'_>,
-        _tunables: &Tunables,
-        _types: &TypeTables,
+        index: DefinedFuncIndex,
+        data: FunctionBodyData<'_>,
+        tunables: &Tunables,
+        types: &TypeTables,
     ) -> Result<Box<dyn Any + Send>, CompileError> {
-        self.runtime
+        let compiled_function = self
+            .runtime
             .block_on(async move {
                 self.set_translation(translation).await?;
-                Ok::<_, anyhow::Error>(())
+
+                let mut client = self.client.clone();
+
+                let req = internal2rpc::from_compile_function_request(index, data, tunables, types);
+                Ok::<_, anyhow::Error>(rpc2internal::from_compiled_function(
+                    client.compile_function(req).await?.into_inner(),
+                ))
             })
             .map_err(|err| CompileError::Codegen(err.to_string()))?;
-        unimplemented!("compile_function is not implemented")
+        Ok(compiled_function)
     }
 
     fn emit_obj(

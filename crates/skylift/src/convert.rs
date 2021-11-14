@@ -4,6 +4,16 @@
 //! If there is a better way to do this let me know. I've experimented with PROST macros but
 //! eventually decided to not as it requires tampering with `target_lexicon` types.
 
+use prost_types::Any;
+use serde::Serialize;
+
+fn to_any_bincode<S: Serialize>(s: &S) -> Option<Any> {
+    bincode::serialize(s).ok().map(|value| Any {
+        value,
+        ..Default::default()
+    })
+}
+
 pub mod rpc2internal {
     use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
 
@@ -13,26 +23,54 @@ pub mod rpc2internal {
      */
     use crate::skylift_grpc::{
         triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-        ModuleTranslation, Triple,
+        CompileFunctionRequest, CompiledFunction, FunctionBodyData, ModuleTranslation, Triple,
     };
     use std::{collections::HashSet, iter::FromIterator};
 
-    // TODO: Convert RPC module translation to internal module translation
+    pub(crate) fn from_function_body_data<'a>(
+        fbd: FunctionBodyData,
+    ) -> wasmtime_environ::FunctionBodyData<'a> {
+        unimplemented!("function body data conversion not implemented");
+    }
+
+    pub(crate) fn from_compiled_function(
+        _cf: CompiledFunction,
+    ) -> Box<wasmtime_cranelift::CompiledFunction> {
+        // TODO Implement compiled function conversion
+        Box::new(wasmtime_cranelift::CompiledFunction::default())
+    }
+
+    pub(crate) fn from_compile_function_request<'a>(
+        cfr: CompileFunctionRequest,
+    ) -> Option<(
+        DefinedFuncIndex,
+        wasmtime_environ::FunctionBodyData<'a>,
+        wasmtime_environ::Tunables,
+        wasmtime_environ::TypeTables,
+    )> {
+        Some((
+            DefinedFuncIndex::from_u32(cfr.index),
+            from_function_body_data(cfr.data?),
+            bincode::deserialize(&cfr.tunables.as_ref()?.value).ok()?,
+            bincode::deserialize(&cfr.types.as_ref()?.value).ok()?,
+        ))
+        // unimplemented!("from_compile_function_request not implemented")
+    }
+
+    /// Convert RPC module translation to internal module translation
     pub(crate) fn from_module_translation<'a>(
-        translation: &ModuleTranslation,
+        translation: ModuleTranslation,
     ) -> Option<wasmtime_environ::ModuleTranslation<'a>> {
         let mut internal = wasmtime_environ::ModuleTranslation::default();
         internal.escaped_funcs = HashSet::from_iter(
             translation
                 .escaped_funcs
-                .iter()
-                .copied()
+                .into_iter()
                 .map(DefinedFuncIndex::from_u32),
         );
         internal.exported_signatures = translation
             .exported_signatures
-            .iter()
-            .copied()
+            .into_iter()
             .map(SignatureIndex::from_u32)
             .collect();
         internal.module = bincode::deserialize(&translation.module.as_ref()?.value).ok()?;
@@ -359,21 +397,39 @@ pub mod rpc2internal {
 
 pub mod internal2rpc {
     use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
-    use prost_types::Any;
-    use wasmtime_environ::FlagValue;
+    use wasmtime_environ::{FlagValue, FunctionBodyData};
 
+    use super::to_any_bincode;
     use crate::skylift_grpc::{
         triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-        FlagMap, ModuleTranslation, Triple,
+        CompileFunctionRequest, CompiledFunction, FlagMap, ModuleTranslation, Triple,
     };
     use std::collections::BTreeMap;
 
+    pub(crate) fn from_compiled_function(
+        _cf: &wasmtime_cranelift::CompiledFunction,
+    ) -> CompiledFunction {
+        unimplemented!("from_compiled_function not implemented");
+    }
+
+    pub(crate) fn from_compile_function_request(
+        index: DefinedFuncIndex,
+        _data: FunctionBodyData<'_>,
+        tunables: &wasmtime_environ::Tunables,
+        types: &wasmtime_environ::TypeTables,
+    ) -> CompileFunctionRequest {
+        CompileFunctionRequest {
+            index: index.as_u32(),
+            // TODO: Add FunctionBodyData serialization
+            data: None,
+            types: to_any_bincode(types),
+            tunables: to_any_bincode(tunables),
+        }
+    }
+
     pub(crate) fn from_flag_map(flag_map: &BTreeMap<String, FlagValue>) -> FlagMap {
         FlagMap {
-            flags: bincode::serialize(&flag_map).ok().map(|value| Any {
-                value,
-                ..Default::default()
-            }),
+            flags: to_any_bincode(flag_map),
         }
     }
 
@@ -381,12 +437,7 @@ pub mod internal2rpc {
         translation: &wasmtime_environ::ModuleTranslation,
     ) -> ModuleTranslation {
         ModuleTranslation {
-            module: bincode::serialize(&translation.module)
-                .ok()
-                .map(|value| Any {
-                    value,
-                    ..Default::default()
-                }),
+            module: to_any_bincode(&translation.module),
             escaped_funcs: translation
                 .escaped_funcs
                 .iter()

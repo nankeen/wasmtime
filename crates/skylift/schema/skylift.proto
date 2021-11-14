@@ -62,7 +62,66 @@ message CompiledFunction {
 }
 
 message FunctionBodyData {
+  message FunctionBody {
+    uint64 offset = 1;
+    bytes data = 2;
+    // FIXME Missing allow_memarg64, which should need to be determined if important
+  }
+
+  message FuncValidator {
+    message OperatorValidator {
+      message Local {
+        uint32 index = 1;
+        Type type = 2;
+      }
+
+      enum Type {
+        I32 = 0;
+        I64 = 1;
+        F32 = 2;
+        F64 = 3;
+        V128 = 4;
+        FUNC_REF = 5;
+        EXTERN_REF = 6;
+        EXN_REF = 7;
+        FUNC = 8;
+        EMPTY_BLOCK_TYPE = 9;
+      }
+
+      uint32 num_locals = 1;
+      repeated Local locals = 2;
+
+    /*
+    // The total number of locals that this function contains
+    num_locals: u32,
+    // This is a "compressed" list of locals for this function. The list of
+    // locals are represented as a list of tuples. The second element is the
+    // type of the local, and the first element is monotonically increasing as
+    // you visit elements of this list. The first element is the maximum index
+    // of the local, after the previous index, of the type specified.
+    //
+    // This allows us to do a binary search on the list for a local's index for
+    // `local.{get,set,tee}`. We do a binary search for the index desired, and
+    // it either lies in a "hole" where the maximum index is specified later,
+    // or it's at the end of the list meaning it's out of bounds.
+    locals: Vec<(u32, Type)>,
+
+    // The `operands` is the current type stack, and the `control` list is the
+    // list of blocks that we're currently in.
+    pub(crate) operands: Vec<Option<Type>>,
+    control: Vec<Frame>,
+
+    // This is a list of flags for wasm features which are used to gate various
+    // instructions.
+    pub(crate) features: WasmFeatures,
+    */
+    }
+    OperatorValidator validator = 1;
+  }
+
   // TODO define function body data
+  FunctionBody body = 1;
+  FuncValidator validator = 2;
 }
 
 message CompileFunctionRequest {

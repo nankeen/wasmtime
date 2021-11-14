@@ -140,7 +140,7 @@ impl Compiler for CompilerService {
         session.map_compiler_mut(|_, module_translation| {
             let new_translation = req.into_inner();
             *module_translation = Some(Box::new(
-                rpc2internal::from_module_translation(&new_translation)
+                rpc2internal::from_module_translation(new_translation)
                     .ok_or_else(|| Status::invalid_argument("bad module provided"))?,
             ));
             Ok::<_, Status>(Response::new(()))
@@ -171,6 +171,31 @@ impl Compiler for CompilerService {
         &self,
         req: Request<CompileFunctionRequest>,
     ) -> Result<Response<CompiledFunction>, Status> {
-        Err(Status::unimplemented("compile function not implemented"))
+        // Retrieve builder id from metadata (headers)
+        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
+        let session = session_lock.read().await;
+
+        session.map_compiler(|compiler, translation| {
+            let (index, data, tunables, types) =
+                rpc2internal::from_compile_function_request(req.into_inner()).ok_or_else(|| {
+                    Status::invalid_argument("bad compiler request provided, could not deserialize")
+                })?;
+
+            compiler
+                .compile_function(
+                    &*translation
+                        .as_ref()
+                        .ok_or_else(|| Status::failed_precondition("translation not defined"))?,
+                    index,
+                    data,
+                    &tunables,
+                    &types,
+                )
+                .map_err(|err| Status::internal(err.to_string()))?
+                .downcast_ref::<wasmtime_cranelift::CompiledFunction>()
+                .ok_or_else(|| Status::internal("could not downcast any to CompiledFunction"))
+                .map(internal2rpc::from_compiled_function)
+                .map(Response::new)
+        })?
     }
 }
