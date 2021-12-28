@@ -14,6 +14,11 @@ pub(crate) fn from_compiled_function(
     unimplemented!("from_compiled_function not implemented");
 }
 
+pub(crate) fn from_function_body_data()
+    -> Vec<u8>
+{
+}
+
 pub(crate) fn from_compile_function_request(
     index: DefinedFuncIndex,
     _data: FunctionBodyData<'_>,

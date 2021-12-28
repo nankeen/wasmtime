@@ -88,33 +88,63 @@ message FunctionBodyData {
         EMPTY_BLOCK_TYPE = 9;
       }
 
+      enum FrameKind {
+        FUNCTION = 0;
+        TABLE = 1;
+        MEMORY = 2;
+        TAG = 3;
+        GLOBAL = 4;
+        TYPE = 5;
+        MODULE = 6;
+        INSTANCE = 7;
+      }
+
+      message TypeOrFuncType {
+        oneof block_type {
+          Type type = 1;
+          uint32 func_type = 2;
+        }
+      }
+
+      message Frame {
+        FrameKind kind = 1;
+        TypeOrFuncType block_type = 2;
+        uint64 height = 3;
+        bool unreachable = 4;
+      }
+
+      message WasmFeatures {
+        /// The WebAssembly reference types proposal (enabled by default)
+        bool reference_types = 1;
+        /// The WebAssembly multi-value proposal (enabled by default)
+        bool multi_value = 2;
+        /// The WebAssembly bulk memory operations proposal (enabled by default)
+        bool bulk_memory = 3;
+        /// The WebAssembly module linking proposal
+        bool module_linking = 4;
+        /// The WebAssembly SIMD proposal
+        bool simd = 5;
+        /// The WebAssembly threads proposal
+        bool threads = 6;
+        /// The WebAssembly tail-call proposal
+        bool tail_call = 7;
+        /// Whether or not only deterministic instructions are allowed
+        bool deterministic_only = 8;
+        /// The WebAssembly multi memory proposal
+        bool multi_memory = 9;
+        /// The WebAssembly exception handling proposal
+        bool exceptions = 10;
+        /// The WebAssembly memory64 proposal
+        bool memory64 = 11;
+      }
+
       uint32 num_locals = 1;
       repeated Local locals = 2;
+      repeated Type operands = 3;
+      repeated Frame control = 4;
 
-    /*
-    // The total number of locals that this function contains
-    num_locals: u32,
-    // This is a "compressed" list of locals for this function. The list of
-    // locals are represented as a list of tuples. The second element is the
-    // type of the local, and the first element is monotonically increasing as
-    // you visit elements of this list. The first element is the maximum index
-    // of the local, after the previous index, of the type specified.
-    //
-    // This allows us to do a binary search on the list for a local's index for
-    // `local.{get,set,tee}`. We do a binary search for the index desired, and
-    // it either lies in a "hole" where the maximum index is specified later,
-    // or it's at the end of the list meaning it's out of bounds.
-    locals: Vec<(u32, Type)>,
+      WasmFeatures features = 5;
 
-    // The `operands` is the current type stack, and the `control` list is the
-    // list of blocks that we're currently in.
-    pub(crate) operands: Vec<Option<Type>>,
-    control: Vec<Frame>,
-
-    // This is a list of flags for wasm features which are used to gate various
-    // instructions.
-    pub(crate) features: WasmFeatures,
-    */
     }
     OperatorValidator validator = 1;
   }
