@@ -1,40 +1,55 @@
 use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
-use wasmtime_environ::{FlagValue, FunctionBodyData};
 
 use super::to_any_bincode;
 use crate::skylift_grpc::{
     triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-    CompileFunctionRequest, CompiledFunction, FlagMap, ModuleTranslation, Triple,
+    CompileFunctionRequest, CompiledFunction, FlagMap, ModuleTranslation, Triple, FunctionBodyData, function_body_data::FunctionBody,
 };
 use std::collections::BTreeMap;
 
 pub(crate) fn from_compiled_function(
     _cf: &wasmtime_cranelift::CompiledFunction,
 ) -> CompiledFunction {
+    // TODO: Add CompiledFunction serialization
     unimplemented!("from_compiled_function not implemented");
 }
 
-pub(crate) fn from_function_body_data()
-    -> Vec<u8>
+pub(crate) fn from_function_body(_fb: wasmparser::FunctionBody) -> FunctionBody {
+    unimplemented!("from_function_body not implemented");
+}
+
+/// `from_func_validator` serializes `FuncValidator` to bincode. This is because the overall
+/// implementation is too complex to be deserialized manually.
+pub(crate) fn from_func_validator<T>(_fv: wasmparser::FuncValidator<T>) -> Vec<u8> {
+    unimplemented!("from_func_validator not implemented");
+}
+
+pub(crate) fn from_function_body_data(fbd: wasmtime_environ::FunctionBodyData<'_>)
+    -> FunctionBodyData
 {
+    // TODO: Add FunctionBodyData serialization
+    FunctionBodyData {
+        body: Some(from_function_body(fbd.body)),
+        validator: from_func_validator(fbd.validator),
+    }
+    // unimplemented!("from_function_body_data not implemented");
 }
 
 pub(crate) fn from_compile_function_request(
     index: DefinedFuncIndex,
-    _data: FunctionBodyData<'_>,
+    data: wasmtime_environ::FunctionBodyData<'_>,
     tunables: &wasmtime_environ::Tunables,
     types: &wasmtime_environ::TypeTables,
 ) -> CompileFunctionRequest {
     CompileFunctionRequest {
         index: index.as_u32(),
-        // TODO: Add FunctionBodyData serialization
-        data: None,
+        data: Some(from_function_body_data(data)),
         types: to_any_bincode(types),
         tunables: to_any_bincode(tunables),
     }
 }
 
-pub(crate) fn from_flag_map(flag_map: &BTreeMap<String, FlagValue>) -> FlagMap {
+pub(crate) fn from_flag_map(flag_map: &BTreeMap<String, wasmtime_environ::FlagValue>) -> FlagMap {
     FlagMap {
         flags: to_any_bincode(flag_map),
     }

@@ -12,6 +12,7 @@ object = { version = "0.26.0", default-features = false, features = ['write'] }
 target-lexicon = "0.12"
 wasmtime-environ = { path = "../environ", version = "0.30.0" }
 wasmtime-cranelift = { path = "../cranelift", version = "0.30.0" }
+wasmparser = "0.80.0"
 
 prost = "0.9"
 prost-types = "0.9"

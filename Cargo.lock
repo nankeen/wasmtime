@@ -3112,6 +3112,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "uuid",
+ "wasmparser",
  "wasmtime-cranelift",
  "wasmtime-environ",
 ]

@@ -151,7 +151,7 @@ message FunctionBodyData {
 
   // TODO define function body data
   FunctionBody body = 1;
-  FuncValidator validator = 2;
+  bytes validator = 2;
 }
 
 message CompileFunctionRequest {
