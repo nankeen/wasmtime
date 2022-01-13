@@ -2,6 +2,7 @@ use object::write::{Object, StandardSegment};
 use object::{Bytes, LittleEndian, SectionKind, U32Bytes};
 use std::convert::TryFrom;
 use std::ops::Range;
+use serde::{Deserialize, Serialize};
 
 /// A helper structure to build the custom-encoded section of a wasmtime
 /// compilation image which encodes trap information.
@@ -44,7 +45,7 @@ pub struct TrapEncodingBuilder {
 pub const ELF_WASMTIME_TRAPS: &str = ".wasmtime.traps";
 
 /// Information about trap.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct TrapInformation {
     /// The offset of the trapping instruction in native code.
     ///
@@ -58,7 +59,7 @@ pub struct TrapInformation {
 /// A trap code describing the reason for a trap.
 ///
 /// All trap instructions have an explicit trap code.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum TrapCode {
     /// The current stack space was exhausted.

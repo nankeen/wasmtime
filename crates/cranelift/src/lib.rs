@@ -98,6 +98,9 @@ use wasmtime_environ::{
     FilePos, FunctionInfo, InstructionAddressMap, ModuleTranslation, TrapInformation, TypeTables,
 };
 
+#[cfg(feature = "enable-serde")]
+use serde::{Deserialize, Serialize};
+
 pub use builder::builder;
 
 mod builder;
@@ -110,6 +113,7 @@ type CompiledFunctions = PrimaryMap<DefinedFuncIndex, CompiledFunction>;
 
 /// Compiled function: machine code body, jump table offsets, and unwind information.
 #[derive(Default)]
+#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 pub struct CompiledFunction {
     /// The machine code for this function.
     body: Vec<u8>,
@@ -137,6 +141,7 @@ pub struct CompiledFunction {
 
 /// Function and its instructions addresses mappings.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 struct FunctionAddressMap {
     /// An array of data for the instructions in this function, indicating where
     /// each instruction maps back to in the original function.
@@ -163,6 +168,7 @@ struct FunctionAddressMap {
 
 /// A record of a relocation to perform.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 struct Relocation {
     /// The relocation code.
     reloc: binemit::Reloc,
@@ -176,6 +182,7 @@ struct Relocation {
 
 /// Destination function. Can be either user function or some special one, like `memory.grow`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 enum RelocationTarget {
     /// The user function index.
     UserFunc(FuncIndex),
