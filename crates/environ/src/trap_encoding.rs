@@ -1,8 +1,8 @@
 use object::write::{Object, StandardSegment};
 use object::{Bytes, LittleEndian, SectionKind, U32Bytes};
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::Range;
-use serde::{Deserialize, Serialize};
 
 /// A helper structure to build the custom-encoded section of a wasmtime
 /// compilation image which encodes trap information.

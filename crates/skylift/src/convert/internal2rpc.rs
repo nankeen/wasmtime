@@ -2,8 +2,9 @@ use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
 
 use super::to_any_bincode;
 use crate::skylift_grpc::{
+    function_body_data::FunctionBody,
     triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-    CompileFunctionRequest, CompiledFunction, FlagMap, ModuleTranslation, Triple, FunctionBodyData, function_body_data::FunctionBody,
+    CompileFunctionRequest, CompiledFunction, FlagMap, FunctionBodyData, ModuleTranslation, Triple,
 };
 use std::collections::BTreeMap;
 
@@ -14,23 +15,17 @@ pub(crate) fn from_compiled_function(
     unimplemented!("from_compiled_function not implemented");
 }
 
-pub(crate) fn from_function_body(_fb: wasmparser::FunctionBody) -> FunctionBody {
+pub(crate) fn from_function_body(fb: wasmparser::FunctionBody) -> FunctionBody {
     unimplemented!("from_function_body not implemented");
 }
 
-/// `from_func_validator` serializes `FuncValidator` to bincode. This is because the overall
-/// implementation is too complex to be deserialized manually.
-pub(crate) fn from_func_validator<T>(_fv: wasmparser::FuncValidator<T>) -> Vec<u8> {
-    unimplemented!("from_func_validator not implemented");
-}
-
-pub(crate) fn from_function_body_data(fbd: wasmtime_environ::FunctionBodyData<'_>)
-    -> FunctionBodyData
-{
+pub(crate) fn from_function_body_data(
+    fbd: wasmtime_environ::FunctionBodyData<'_>,
+) -> FunctionBodyData {
     // TODO: Add FunctionBodyData serialization
     FunctionBodyData {
         body: Some(from_function_body(fbd.body)),
-        validator: from_func_validator(fbd.validator),
+        // validator: from_func_validator(fbd.validator),
     }
     // unimplemented!("from_function_body_data not implemented");
 }
@@ -213,9 +208,9 @@ pub(crate) fn from_architecture(architecture: &target_lexicon::Architecture) -> 
         target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64) => {
             Architecture::Aarch64
         }
-        target_lexicon::Architecture::Aarch64(
-            target_lexicon::Aarch64Architecture::Aarch64be,
-        ) => Architecture::Aarch64be,
+        target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64be) => {
+            Architecture::Aarch64be
+        }
         target_lexicon::Architecture::Asmjs => Architecture::Asmjs,
         target_lexicon::Architecture::Avr => Architecture::Avr,
         target_lexicon::Architecture::Hexagon => Architecture::Hexagon,
@@ -234,24 +229,24 @@ pub(crate) fn from_architecture(architecture: &target_lexicon::Architecture) -> 
         target_lexicon::Architecture::Mips32(target_lexicon::Mips32Architecture::Mipsel) => {
             Architecture::Mipsel
         }
-        target_lexicon::Architecture::Mips32(
-            target_lexicon::Mips32Architecture::Mipsisa32r6,
-        ) => Architecture::Mipsisa32r6,
-        target_lexicon::Architecture::Mips32(
-            target_lexicon::Mips32Architecture::Mipsisa32r6el,
-        ) => Architecture::Mipsisa32r6el,
+        target_lexicon::Architecture::Mips32(target_lexicon::Mips32Architecture::Mipsisa32r6) => {
+            Architecture::Mipsisa32r6
+        }
+        target_lexicon::Architecture::Mips32(target_lexicon::Mips32Architecture::Mipsisa32r6el) => {
+            Architecture::Mipsisa32r6el
+        }
         target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mips64) => {
             Architecture::Mips64
         }
         target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mips64el) => {
             Architecture::Mips64el
         }
-        target_lexicon::Architecture::Mips64(
-            target_lexicon::Mips64Architecture::Mipsisa64r6,
-        ) => Architecture::Mipsisa64r6,
-        target_lexicon::Architecture::Mips64(
-            target_lexicon::Mips64Architecture::Mipsisa64r6el,
-        ) => Architecture::Mipsisa64r6el,
+        target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mipsisa64r6) => {
+            Architecture::Mipsisa64r6
+        }
+        target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mipsisa64r6el) => {
+            Architecture::Mipsisa64r6el
+        }
         target_lexicon::Architecture::Msp430 => Architecture::Msp430,
         target_lexicon::Architecture::Nvptx64 => Architecture::Nvptx64,
         target_lexicon::Architecture::Powerpc => Architecture::Powerpc,
@@ -260,27 +255,27 @@ pub(crate) fn from_architecture(architecture: &target_lexicon::Architecture) -> 
         target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32) => {
             Architecture::Riscv32
         }
-        target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32gc,
-        ) => Architecture::Riscv32gc,
-        target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32i,
-        ) => Architecture::Riscv32i,
-        target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32imac,
-        ) => Architecture::Riscv32imac,
-        target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32imc,
-        ) => Architecture::Riscv32imc,
+        target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32gc) => {
+            Architecture::Riscv32gc
+        }
+        target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32i) => {
+            Architecture::Riscv32i
+        }
+        target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32imac) => {
+            Architecture::Riscv32imac
+        }
+        target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32imc) => {
+            Architecture::Riscv32imc
+        }
         target_lexicon::Architecture::Riscv64(target_lexicon::Riscv64Architecture::Riscv64) => {
             Architecture::Riscv64
         }
-        target_lexicon::Architecture::Riscv64(
-            target_lexicon::Riscv64Architecture::Riscv64gc,
-        ) => Architecture::Riscv64gc,
-        target_lexicon::Architecture::Riscv64(
-            target_lexicon::Riscv64Architecture::Riscv64imac,
-        ) => Architecture::Riscv64imac,
+        target_lexicon::Architecture::Riscv64(target_lexicon::Riscv64Architecture::Riscv64gc) => {
+            Architecture::Riscv64gc
+        }
+        target_lexicon::Architecture::Riscv64(target_lexicon::Riscv64Architecture::Riscv64imac) => {
+            Architecture::Riscv64imac
+        }
         target_lexicon::Architecture::S390x => Architecture::S390x,
         target_lexicon::Architecture::Sparc => Architecture::Sparc,
         target_lexicon::Architecture::Sparc64 => Architecture::Sparc64,

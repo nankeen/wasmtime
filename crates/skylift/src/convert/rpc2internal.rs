@@ -205,9 +205,9 @@ pub(crate) fn from_architecture(architecture: Architecture) -> target_lexicon::A
         Architecture::Aarch64 => {
             target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64)
         }
-        Architecture::Aarch64be => target_lexicon::Architecture::Aarch64(
-            target_lexicon::Aarch64Architecture::Aarch64be,
-        ),
+        Architecture::Aarch64be => {
+            target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64be)
+        }
         Architecture::Asmjs => target_lexicon::Architecture::Asmjs,
         Architecture::Avr => target_lexicon::Architecture::Avr,
         Architecture::Hexagon => target_lexicon::Architecture::Hexagon,
@@ -226,24 +226,24 @@ pub(crate) fn from_architecture(architecture: Architecture) -> target_lexicon::A
         Architecture::Mipsel => {
             target_lexicon::Architecture::Mips32(target_lexicon::Mips32Architecture::Mipsel)
         }
-        Architecture::Mipsisa32r6 => target_lexicon::Architecture::Mips32(
-            target_lexicon::Mips32Architecture::Mipsisa32r6,
-        ),
-        Architecture::Mipsisa32r6el => target_lexicon::Architecture::Mips32(
-            target_lexicon::Mips32Architecture::Mipsisa32r6el,
-        ),
+        Architecture::Mipsisa32r6 => {
+            target_lexicon::Architecture::Mips32(target_lexicon::Mips32Architecture::Mipsisa32r6)
+        }
+        Architecture::Mipsisa32r6el => {
+            target_lexicon::Architecture::Mips32(target_lexicon::Mips32Architecture::Mipsisa32r6el)
+        }
         Architecture::Mips64 => {
             target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mips64)
         }
         Architecture::Mips64el => {
             target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mips64el)
         }
-        Architecture::Mipsisa64r6 => target_lexicon::Architecture::Mips64(
-            target_lexicon::Mips64Architecture::Mipsisa64r6,
-        ),
-        Architecture::Mipsisa64r6el => target_lexicon::Architecture::Mips64(
-            target_lexicon::Mips64Architecture::Mipsisa64r6el,
-        ),
+        Architecture::Mipsisa64r6 => {
+            target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mipsisa64r6)
+        }
+        Architecture::Mipsisa64r6el => {
+            target_lexicon::Architecture::Mips64(target_lexicon::Mips64Architecture::Mipsisa64r6el)
+        }
         Architecture::Msp430 => target_lexicon::Architecture::Msp430,
         Architecture::Nvptx64 => target_lexicon::Architecture::Nvptx64,
         Architecture::Powerpc => target_lexicon::Architecture::Powerpc,
@@ -252,27 +252,27 @@ pub(crate) fn from_architecture(architecture: Architecture) -> target_lexicon::A
         Architecture::Riscv32 => {
             target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32)
         }
-        Architecture::Riscv32gc => target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32gc,
-        ),
+        Architecture::Riscv32gc => {
+            target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32gc)
+        }
         Architecture::Riscv32i => {
             target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32i)
         }
-        Architecture::Riscv32imac => target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32imac,
-        ),
-        Architecture::Riscv32imc => target_lexicon::Architecture::Riscv32(
-            target_lexicon::Riscv32Architecture::Riscv32imc,
-        ),
+        Architecture::Riscv32imac => {
+            target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32imac)
+        }
+        Architecture::Riscv32imc => {
+            target_lexicon::Architecture::Riscv32(target_lexicon::Riscv32Architecture::Riscv32imc)
+        }
         Architecture::Riscv64 => {
             target_lexicon::Architecture::Riscv64(target_lexicon::Riscv64Architecture::Riscv64)
         }
-        Architecture::Riscv64gc => target_lexicon::Architecture::Riscv64(
-            target_lexicon::Riscv64Architecture::Riscv64gc,
-        ),
-        Architecture::Riscv64imac => target_lexicon::Architecture::Riscv64(
-            target_lexicon::Riscv64Architecture::Riscv64imac,
-        ),
+        Architecture::Riscv64gc => {
+            target_lexicon::Architecture::Riscv64(target_lexicon::Riscv64Architecture::Riscv64gc)
+        }
+        Architecture::Riscv64imac => {
+            target_lexicon::Architecture::Riscv64(target_lexicon::Riscv64Architecture::Riscv64imac)
+        }
         Architecture::S390x => target_lexicon::Architecture::S390x,
         Architecture::Sparc => target_lexicon::Architecture::Sparc,
         Architecture::Sparc64 => target_lexicon::Architecture::Sparc64,
