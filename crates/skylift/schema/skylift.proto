@@ -65,6 +65,7 @@ message FunctionBodyData {
   message FunctionBody {
     uint64 offset = 1;
     bytes data = 2;
+    bool allow_memarg64 = 3;
     // FIXME Missing allow_memarg64, which should need to be determined if important
   }
 

@@ -124,3 +124,6 @@ harness = false
 [[bench]]
 name = "thread_eager_init"
 harness = false
+
+[patch.crates-io]
+wasmparser = { path = "../wasm-tools/crates/wasmparser" }

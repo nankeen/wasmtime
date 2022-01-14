@@ -6,7 +6,7 @@ use crate::skylift_grpc::{
     triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
     CompileFunctionRequest, CompiledFunction, FlagMap, FunctionBodyData, ModuleTranslation, Triple,
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryInto};
 
 pub(crate) fn from_compiled_function(
     _cf: &wasmtime_cranelift::CompiledFunction,
@@ -16,18 +16,22 @@ pub(crate) fn from_compiled_function(
 }
 
 pub(crate) fn from_function_body(fb: wasmparser::FunctionBody) -> FunctionBody {
-    unimplemented!("from_function_body not implemented");
+    FunctionBody {
+        data: fb.data.to_vec(),
+        offset: fb
+            .offset
+            .try_into()
+            .expect("from_function_body offset conversion error"),
+        allow_memarg64: fb.allow_memarg64,
+    }
 }
 
 pub(crate) fn from_function_body_data(
     fbd: wasmtime_environ::FunctionBodyData<'_>,
 ) -> FunctionBodyData {
-    // TODO: Add FunctionBodyData serialization
     FunctionBodyData {
         body: Some(from_function_body(fbd.body)),
-        // validator: from_func_validator(fbd.validator),
     }
-    // unimplemented!("from_function_body_data not implemented");
 }
 
 pub(crate) fn from_compile_function_request(
