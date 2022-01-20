@@ -2,15 +2,17 @@ use super::CompilerSession;
 use crate::{
     convert::{internal2rpc, rpc2internal},
     skylift_grpc::{
-        compiler_server::Compiler, BuildResponse, CompileFunctionRequest, CompiledFunction,
-        EnableRequest, FlagMap, ModuleTranslation, NewBuilderResponse, SetRequest,
-        SettingsResponse, Triple,
+        compiler_server::Compiler, BuildArtifactsRequest, BuildArtifactsResponse, BuildResponse,
+        EnableRequest, FlagMap, NewBuilderResponse, SetRequest, SettingsResponse, Triple,
     },
     RemoteId, REMOTE_ID_HEADER,
 };
+use anyhow::Context;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
+use tracing::{instrument, trace};
+use wasmtime_environ::ModuleEnvironment;
 
 #[derive(Default)]
 pub(crate) struct CompilerService {
@@ -109,9 +111,11 @@ impl Compiler for CompilerService {
         Err(Status::unimplemented("not implemented"))
     }
 
+    #[instrument(skip_all)]
     async fn build(&self, req: Request<()>) -> Result<Response<BuildResponse>, Status> {
         // Get the builder to build a compiler according to the settings so far
         let remote_id = get_remote_id(&req)?;
+        trace!("{:?}", remote_id);
         let session_lock = self.get_session(&remote_id).await?;
         let mut session = session_lock.write().await;
 
@@ -121,30 +125,98 @@ impl Compiler for CompilerService {
             remote_id: remote_id.to_string(),
         });
 
-        *session = CompilerSession::Compile {
-            compiler,
-            module_translation: None,
-        };
+        *session = CompilerSession::Compile(compiler);
 
         Ok(response)
     }
 
-    async fn set_translation(
+    async fn build_artifacts(
         &self,
-        req: Request<ModuleTranslation>,
-    ) -> Result<Response<()>, Status> {
-        // Retrieve builder id from metadata (headers)
-        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
-        let mut session = session_lock.write().await;
+        req: Request<BuildArtifactsRequest>,
+    ) -> Result<Response<BuildArtifactsResponse>, Status> {
+        // Require tunables, features, paged_memory_initialization
+        let tunables = rpc2internal::from_tunables();
+        let features = rpc2internal::from_wasm_features();
+        let paged_memory_initialization = false;
+        let wasm: &[u8] = &[53, 32];
 
-        session.map_compiler_mut(|_, module_translation| {
-            let new_translation = req.into_inner();
-            *module_translation = Some(Box::new(
-                rpc2internal::from_module_translation(new_translation)
-                    .ok_or_else(|| Status::invalid_argument("bad module provided"))?,
-            ));
-            Ok::<_, Status>(Response::new(()))
-        })?
+        // First a `ModuleEnvironment` is created which records type information
+        // about the wasm module. This is where the WebAssembly is parsed and
+        // validated. Afterwards `types` will have all the type information for
+        // this module.
+        let (main_module, translations, types) =
+            ModuleEnvironment::new(tunables, features)
+                .translate(&wasm)
+                .map_err(|_| Status::invalid_argument("failed to parse WebAssembly module"))?;
+
+        // Perform a two-level map/reduce here to get the final list of
+        // compilation artifacts. The first level of map/reduce maps over all
+        // modules found and reduces to collection into a vector. The second
+        // level of map/reduce here maps over all functions within each wasm
+        // module found and collects into an ELF image via `emit_obj`.
+        let list = {
+            // Obtain session
+            self.get_session(&get_remote_id(&req)?)
+                .await?
+                .read()
+                .await
+                .map_compiler(|compiler| -> anyhow::Result<_> {
+                    engine.run_maybe_parallel(
+                        translations,
+                        |mut translation| -> anyhow::Result<_> {
+                            let functions = std::mem::take(&mut translation.function_body_inputs);
+                            let functions = functions.into_iter().collect::<Vec<_>>();
+
+                            let funcs = engine
+                                .run_maybe_parallel(functions, |(index, func)| {
+                                    engine.compiler().compile_function(
+                                        &translation,
+                                        index,
+                                        func,
+                                        tunables,
+                                        &types,
+                                    )
+                                })?
+                                .into_iter()
+                                .collect();
+
+                            let mut obj = engine.compiler().object()?;
+                            let (funcs, trampolines) = engine.compiler().emit_obj(
+                                &translation,
+                                &types,
+                                funcs,
+                                tunables.generate_native_debuginfo,
+                                &mut obj,
+                            )?;
+
+                            // If configured, attempt to use paged memory initialization
+                            // instead of the default mode of memory initialization
+                            if paged_memory_initialization {
+                                translation.try_paged_init();
+                            }
+
+                            let (mmap, info) = wasmtime_jit::finish_compile(
+                                translation,
+                                obj,
+                                funcs,
+                                trampolines,
+                                tunables,
+                            )?;
+                            Ok((mmap, Some(info)))
+                        },
+                    )?
+                })
+        };
+
+        Ok((
+            main_module,
+            list,
+            TypeTables {
+                wasm_signatures: types.wasm_signatures,
+                module_signatures: types.module_signatures,
+                instance_signatures: types.instance_signatures,
+            },
+        ))
     }
 
     async fn get_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {
@@ -152,9 +224,8 @@ impl Compiler for CompilerService {
         let session_lock = self.get_session(&get_remote_id(&req)?).await?;
         let session = session_lock.read().await;
 
-        session.map_compiler(|compiler, _| {
-            Response::new(internal2rpc::from_flag_map(&compiler.flags()))
-        })
+        session
+            .map_compiler(|compiler| Response::new(internal2rpc::from_flag_map(&compiler.flags())))
     }
 
     async fn get_isa_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {
@@ -162,40 +233,8 @@ impl Compiler for CompilerService {
         let session_lock = self.get_session(&get_remote_id(&req)?).await?;
         let session = session_lock.read().await;
 
-        session.map_compiler(|compiler, _| {
+        session.map_compiler(|compiler| {
             Response::new(internal2rpc::from_flag_map(&compiler.isa_flags()))
         })
-    }
-
-    async fn compile_function(
-        &self,
-        req: Request<CompileFunctionRequest>,
-    ) -> Result<Response<CompiledFunction>, Status> {
-        // Retrieve builder id from metadata (headers)
-        let session_lock = self.get_session(&get_remote_id(&req)?).await?;
-        let session = session_lock.read().await;
-
-        session.map_compiler(|compiler, translation| {
-            let (index, data, tunables, types) =
-                rpc2internal::from_compile_function_request(req.into_inner()).ok_or_else(|| {
-                    Status::invalid_argument("bad compiler request provided, could not deserialize")
-                })?;
-
-            compiler
-                .compile_function(
-                    &*translation
-                        .as_ref()
-                        .ok_or_else(|| Status::failed_precondition("translation not defined"))?,
-                    index,
-                    data,
-                    &tunables,
-                    &types,
-                )
-                .map_err(|err| Status::internal(err.to_string()))?
-                .downcast_ref::<wasmtime_cranelift::CompiledFunction>()
-                .ok_or_else(|| Status::internal("could not downcast any to CompiledFunction"))
-                .map(internal2rpc::from_compiled_function)
-                .map(Response::new)
-        })?
     }
 }

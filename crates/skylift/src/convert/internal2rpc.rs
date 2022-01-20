@@ -1,76 +1,13 @@
-use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
-
 use super::to_any_bincode;
+use std::collections::BTreeMap;
+
 use crate::skylift_grpc::{
-    function_body_data::FunctionBody,
-    triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-    CompileFunctionRequest, CompiledFunction, FlagMap, FunctionBodyData, ModuleTranslation, Triple,
+    triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor}, Triple, FlagMap
 };
-use std::{collections::BTreeMap, convert::TryInto};
-
-pub(crate) fn from_compiled_function(
-    _cf: &wasmtime_cranelift::CompiledFunction,
-) -> CompiledFunction {
-    // TODO: Add CompiledFunction serialization
-    unimplemented!("from_compiled_function not implemented");
-}
-
-pub(crate) fn from_function_body(fb: wasmparser::FunctionBody) -> FunctionBody {
-    FunctionBody {
-        data: fb.data.to_vec(),
-        offset: fb
-            .offset
-            .try_into()
-            .expect("from_function_body offset conversion error"),
-        allow_memarg64: fb.allow_memarg64,
-    }
-}
-
-pub(crate) fn from_function_body_data(
-    fbd: wasmtime_environ::FunctionBodyData<'_>,
-) -> FunctionBodyData {
-    FunctionBodyData {
-        body: Some(from_function_body(fbd.body)),
-    }
-}
-
-pub(crate) fn from_compile_function_request(
-    index: DefinedFuncIndex,
-    data: wasmtime_environ::FunctionBodyData<'_>,
-    tunables: &wasmtime_environ::Tunables,
-    types: &wasmtime_environ::TypeTables,
-) -> CompileFunctionRequest {
-    CompileFunctionRequest {
-        index: index.as_u32(),
-        data: Some(from_function_body_data(data)),
-        types: to_any_bincode(types),
-        tunables: to_any_bincode(tunables),
-    }
-}
 
 pub(crate) fn from_flag_map(flag_map: &BTreeMap<String, wasmtime_environ::FlagValue>) -> FlagMap {
     FlagMap {
         flags: to_any_bincode(flag_map),
-    }
-}
-
-pub(crate) fn from_module_translation(
-    translation: &wasmtime_environ::ModuleTranslation,
-) -> ModuleTranslation {
-    ModuleTranslation {
-        module: to_any_bincode(&translation.module),
-        escaped_funcs: translation
-            .escaped_funcs
-            .iter()
-            .copied()
-            .map(DefinedFuncIndex::as_u32)
-            .collect(),
-        exported_signatures: translation
-            .exported_signatures
-            .iter()
-            .copied()
-            .map(SignatureIndex::as_u32)
-            .collect(),
     }
 }
 

@@ -1,80 +1,11 @@
-use cranelift_wasm::{DefinedFuncIndex, SignatureIndex};
-
 /**
  * This module converts Cap'n Proto RPC types into their respective internal representations
  * For conversion from internal representation, see `internal2rpc`.
  */
 use crate::skylift_grpc::{
-    function_body_data::FunctionBody,
     triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-    CompileFunctionRequest, CompiledFunction, FunctionBodyData, ModuleTranslation, Triple,
+    Triple,
 };
-use std::{collections::HashSet, convert::TryInto, iter::FromIterator};
-
-pub(crate) fn from_function_body<'a>(fb: FunctionBody) -> wasmparser::FunctionBody<'a> {
-    wasmparser::FunctionBody {
-        data: &fb.data,
-        offset: fb
-            .offset
-            .try_into()
-            .expect("from_function_body offset conversion error"),
-        allow_memarg64: fb.allow_memarg64,
-    }
-}
-
-pub(crate) fn from_function_body_data<'a>(
-    fbd: FunctionBodyData,
-) -> wasmtime_environ::FunctionBodyData<'a> {
-    // TODO Implement function body data conversion
-    // unimplemented!("function body data conversion not implemented");
-    wasmtime_environ::FunctionBodyData {
-        body: from_function_body(fbd.body.unwrap()),
-    }
-}
-
-pub(crate) fn from_compiled_function(
-    _cf: CompiledFunction,
-) -> Box<wasmtime_cranelift::CompiledFunction> {
-    // TODO Implement compiled function conversion
-    Box::new(wasmtime_cranelift::CompiledFunction::default())
-}
-
-pub(crate) fn from_compile_function_request<'a>(
-    cfr: CompileFunctionRequest,
-) -> Option<(
-    DefinedFuncIndex,
-    wasmtime_environ::FunctionBodyData<'a>,
-    wasmtime_environ::Tunables,
-    wasmtime_environ::TypeTables,
-)> {
-    Some((
-        DefinedFuncIndex::from_u32(cfr.index),
-        from_function_body_data(cfr.data?),
-        bincode::deserialize(&cfr.tunables.as_ref()?.value).ok()?,
-        bincode::deserialize(&cfr.types.as_ref()?.value).ok()?,
-    ))
-    // unimplemented!("from_compile_function_request not implemented")
-}
-
-/// Convert RPC module translation to internal module translation
-pub(crate) fn from_module_translation<'a>(
-    translation: ModuleTranslation,
-) -> Option<wasmtime_environ::ModuleTranslation<'a>> {
-    let mut internal = wasmtime_environ::ModuleTranslation::default();
-    internal.escaped_funcs = HashSet::from_iter(
-        translation
-            .escaped_funcs
-            .into_iter()
-            .map(DefinedFuncIndex::from_u32),
-    );
-    internal.exported_signatures = translation
-        .exported_signatures
-        .into_iter()
-        .map(SignatureIndex::from_u32)
-        .collect();
-    internal.module = bincode::deserialize(&translation.module.as_ref()?.value).ok()?;
-    Some(internal)
-}
 
 pub(crate) fn from_triple(triple: &Triple) -> Option<target_lexicon::Triple> {
     let architecture = from_architecture(Architecture::from_i32(triple.architecture)?);

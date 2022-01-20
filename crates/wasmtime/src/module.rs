@@ -368,64 +368,12 @@ impl Module {
         Vec<(MmapVec, Option<CompiledModuleInfo>)>,
         TypeTables,
     )> {
-        let tunables = &engine.config().tunables;
-
-        // First a `ModuleEnvironment` is created which records type information
-        // about the wasm module. This is where the WebAssembly is parsed and
-        // validated. Afterwards `types` will have all the type information for
-        // this module.
-        let (main_module, translations, types) =
-            ModuleEnvironment::new(tunables, &engine.config().features)
-                .translate(wasm)
-                .context("failed to parse WebAssembly module")?;
-
-        // Perform a two-level map/reduce here to get the final list of
-        // compilation artifacts. The first level of map/reduce maps over all
-        // modules found and reduces to collection into a vector. The second
-        // level of map/reduce here maps over all functions within each wasm
-        // module found and collects into an ELF image via `emit_obj`.
-        let list = engine.run_maybe_parallel(translations, |mut translation| -> Result<_> {
-            let functions = mem::take(&mut translation.function_body_inputs);
-            let functions = functions.into_iter().collect::<Vec<_>>();
-
-            let funcs = engine
-                .run_maybe_parallel(functions, |(index, func)| {
-                    engine
-                        .compiler()
-                        .compile_function(&translation, index, func, tunables, &types)
-                })?
-                .into_iter()
-                .collect();
-
-            let mut obj = engine.compiler().object()?;
-            let (funcs, trampolines) = engine.compiler().emit_obj(
-                &translation,
-                &types,
-                funcs,
-                tunables.generate_native_debuginfo,
-                &mut obj,
-            )?;
-
-            // If configured, attempt to use paged memory initialization
-            // instead of the default mode of memory initialization
-            if engine.config().paged_memory_initialization {
-                translation.try_paged_init();
-            }
-
-            let (mmap, info) =
-                wasmtime_jit::finish_compile(translation, obj, funcs, trampolines, tunables)?;
-            Ok((mmap, Some(info)))
-        })?;
-
-        Ok((
-            main_module,
-            list,
-            TypeTables {
-                wasm_signatures: types.wasm_signatures,
-                module_signatures: types.module_signatures,
-                instance_signatures: types.instance_signatures,
-            },
-        ))
+        let (main_module, list_ser, type_table) = engine.compiler().build_artifacts(wasm)?;
+        let list: Vec<(MmapVec, Option<CompiledModuleInfo>)> = engine
+            .run_maybe_parallel(list_ser, |mod_data| -> Result<_> {
+                Ok((MmapVec::from_slice(&mod_data)?, None))
+            })?;
+        Ok((main_module, list, bincode::deserialize(type_table)?))
     }
 
     /// Deserializes an in-memory compiled module previously created with

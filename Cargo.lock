@@ -831,7 +831,7 @@ dependencies = [
  "serde",
  "smallvec",
  "target-lexicon",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-types",
  "wat",
 ]
@@ -1826,7 +1826,7 @@ dependencies = [
  "smallvec",
  "thiserror",
  "typemap",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wat",
 ]
 
@@ -3205,10 +3205,14 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tonic-build",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber 0.3.5",
  "uuid",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-cranelift",
  "wasmtime-environ",
+ "wasmtime-jit",
 ]
 
 [[package]]
@@ -3696,6 +3700,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-subscriber"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d81bfa81424cc98cb034b837c985b7a290f592e5b4322f353f94a0ab0f9f594"
+dependencies = [
+ "ansi_term",
+ "sharded-slab",
+ "smallvec",
+ "thread_local",
+ "tracing-core",
+ "tracing-log",
+]
+
+[[package]]
 name = "traitobject"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4065,10 +4083,9 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.80.0"
-dependencies = [
- "serde",
-]
+version = "0.80.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "449167e2832691a1bff24cde28d2804e90e09586a448c8e76984792c44334a6b"
 
 [[package]]
 name = "wasmparser"
@@ -4110,7 +4127,7 @@ dependencies = [
  "target-lexicon",
  "tempfile",
  "wasi-cap-std-sync",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-cache",
  "wasmtime-cranelift",
  "wasmtime-environ",
@@ -4210,8 +4227,8 @@ dependencies = [
  "tempfile",
  "test-programs",
  "tokio",
- "tracing-subscriber",
- "wasmparser 0.80.0",
+ "tracing-subscriber 0.2.25",
+ "wasmparser 0.80.2",
  "wasmtime",
  "wasmtime-cache",
  "wasmtime-cranelift",
@@ -4244,7 +4261,7 @@ dependencies = [
  "serde",
  "target-lexicon",
  "thiserror",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-environ",
 ]
 
@@ -4263,7 +4280,7 @@ dependencies = [
  "serde",
  "target-lexicon",
  "thiserror",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-types",
 ]
 
@@ -4309,7 +4326,7 @@ dependencies = [
  "wasm-smith",
  "wasm-spec-interpreter",
  "wasmi",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmprinter",
  "wasmtime",
  "wasmtime-wast",
@@ -4334,7 +4351,7 @@ dependencies = [
  "serde",
  "target-lexicon",
  "thiserror",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-environ",
  "wasmtime-runtime",
  "winapi",
@@ -4350,7 +4367,7 @@ dependencies = [
  "lightbeam",
  "object 0.26.2",
  "target-lexicon",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
  "wasmtime-environ",
 ]
 
@@ -4385,7 +4402,7 @@ dependencies = [
  "cranelift-entity",
  "serde",
  "thiserror",
- "wasmparser 0.80.0",
+ "wasmparser 0.80.2",
 ]
 
 [[package]]
@@ -4543,7 +4560,7 @@ dependencies = [
  "proptest",
  "thiserror",
  "tracing",
- "tracing-subscriber",
+ "tracing-subscriber 0.2.25",
  "wiggle",
 ]
 

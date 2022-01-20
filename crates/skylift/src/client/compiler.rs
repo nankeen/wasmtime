@@ -3,7 +3,7 @@ use crate::{
     convert::{internal2rpc, rpc2internal},
     skylift_grpc::compiler_client::CompilerClient,
 };
-use anyhow::Result;
+use anyhow::{Error, Result};
 use cranelift_wasm::{DefinedFuncIndex, WasmFuncType};
 use object::write::Object;
 use std::{any::Any, collections::BTreeMap, sync::Arc};
@@ -14,23 +14,18 @@ use wasmtime_environ::{
     Trampoline, Tunables, TypeTables,
 };
 
-#[derive(Default, Clone)]
-struct CompilerCache {
-    pub triple: Option<target_lexicon::Triple>,
-}
-
 /// [`Compiler`] implements `wasmtime_environ::Compiler`.
 ///
 /// It is a thin wrapper on top of tonic gRPC client specifically for the
 /// `Compiler` service.
 #[derive(Clone)]
 pub struct Compiler {
-    cache: CompilerCache,
     /// `client` - Handler for client session, according to tonic specs this should
     /// be cheap to clone as the underlying implementation uses mpsc channel.
     client: CompilerClient<InterceptedService<Channel, RemoteId>>,
     runtime: Arc<Runtime>,
     translation_set: Arc<RwLock<bool>>,
+    triple: target_lexicon::Triple,
 }
 
 impl Compiler {
@@ -43,50 +38,21 @@ impl Compiler {
             client,
             runtime,
             translation_set: Arc::new(RwLock::new(false)),
-            cache: CompilerCache {
-                triple: Some(triple),
-            },
+            triple,
         }
-    }
-
-    async fn set_translation(&self, translation: &ModuleTranslation<'_>) -> Result<()> {
-        if !*self.translation_set.read().await {
-            let mut client = self.client.clone();
-            client
-                .set_translation(Request::new(internal2rpc::from_module_translation(
-                    translation,
-                )))
-                .await?;
-
-            *self.translation_set.write().await = true;
-        }
-        Ok(())
     }
 }
 
 impl wasmtime_environ::Compiler for Compiler {
     fn compile_function(
         &self,
-        translation: &ModuleTranslation<'_>,
-        index: DefinedFuncIndex,
-        data: FunctionBodyData<'_>,
-        tunables: &Tunables,
-        types: &TypeTables,
+        _translation: &ModuleTranslation<'_>,
+        _index: DefinedFuncIndex,
+        _data: FunctionBodyData<'_>,
+        _tunables: &Tunables,
+        _types: &TypeTables,
     ) -> Result<Box<dyn Any + Send>, CompileError> {
-        let compiled_function = self
-            .runtime
-            .block_on(async move {
-                self.set_translation(translation).await?;
-
-                let mut client = self.client.clone();
-
-                let req = internal2rpc::from_compile_function_request(index, data, tunables, types);
-                Ok::<_, anyhow::Error>(rpc2internal::from_compiled_function(
-                    client.compile_function(req).await?.into_inner(),
-                ))
-            })
-            .map_err(|err| CompileError::Codegen(err.to_string()))?;
-        Ok(compiled_function)
+        unimplemented!("compile_function should not be used on skylift mode")
     }
 
     fn emit_obj(
@@ -110,7 +76,7 @@ impl wasmtime_environ::Compiler for Compiler {
     }
 
     fn triple(&self) -> &target_lexicon::Triple {
-        self.cache.triple.as_ref().unwrap()
+        &self.triple
     }
 
     fn flags(&self) -> BTreeMap<String, FlagValue> {

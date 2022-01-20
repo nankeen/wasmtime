@@ -44,133 +44,29 @@ service Compiler {
   rpc Build(google.protobuf.Empty) returns (BuildResponse);
 
   // Compiler
-  rpc CompileFunction(CompileFunctionRequest) returns (CompiledFunction);
-  // rpc EmitObj(EmitObjRequest) returns EmitObjectResponse;
-  // rpc EmitTrampolineObj(EmitTrampolineObjRequest) returns EmitTrampolineObjResponse;
   rpc GetFlags(google.protobuf.Empty) returns (FlagMap);
   rpc GetISAFlags(google.protobuf.Empty) returns (FlagMap);
-  rpc SetTranslation(ModuleTranslation) returns (google.protobuf.Empty);
+  rpc BuildArtifacts(BuildArtifactsRequest) returns (BuildArtifactsResponse);
+}
+
+message BuildArtifactsRequest {
+  bytes wasm = 1;
+  google.protobuf.Any tunables = 2;
+  WasmFeatures features = 3;
+  bool paged_memory_initialization = 4;
+}
+
+message WasmFeatures {
+  // TODO
+}
+
+message BuildArtifactsResponse {
+  google.protobuf.Any serialized_module = 1;
 }
 
 message FlagMap {
   // This is a serialized version of BTreeMap<String, FlagValue>
   google.protobuf.Any flags = 1;
-}
-
-message CompiledFunction {
-  // TODO define compiled function
-}
-
-message FunctionBodyData {
-  message FunctionBody {
-    uint64 offset = 1;
-    bytes data = 2;
-    bool allow_memarg64 = 3;
-    // FIXME Missing allow_memarg64, which should need to be determined if important
-  }
-
-  message FuncValidator {
-    message OperatorValidator {
-      message Local {
-        uint32 index = 1;
-        Type type = 2;
-      }
-
-      enum Type {
-        I32 = 0;
-        I64 = 1;
-        F32 = 2;
-        F64 = 3;
-        V128 = 4;
-        FUNC_REF = 5;
-        EXTERN_REF = 6;
-        EXN_REF = 7;
-        FUNC = 8;
-        EMPTY_BLOCK_TYPE = 9;
-      }
-
-      enum FrameKind {
-        FUNCTION = 0;
-        TABLE = 1;
-        MEMORY = 2;
-        TAG = 3;
-        GLOBAL = 4;
-        TYPE = 5;
-        MODULE = 6;
-        INSTANCE = 7;
-      }
-
-      message TypeOrFuncType {
-        oneof block_type {
-          Type type = 1;
-          uint32 func_type = 2;
-        }
-      }
-
-      message Frame {
-        FrameKind kind = 1;
-        TypeOrFuncType block_type = 2;
-        uint64 height = 3;
-        bool unreachable = 4;
-      }
-
-      message WasmFeatures {
-        /// The WebAssembly reference types proposal (enabled by default)
-        bool reference_types = 1;
-        /// The WebAssembly multi-value proposal (enabled by default)
-        bool multi_value = 2;
-        /// The WebAssembly bulk memory operations proposal (enabled by default)
-        bool bulk_memory = 3;
-        /// The WebAssembly module linking proposal
-        bool module_linking = 4;
-        /// The WebAssembly SIMD proposal
-        bool simd = 5;
-        /// The WebAssembly threads proposal
-        bool threads = 6;
-        /// The WebAssembly tail-call proposal
-        bool tail_call = 7;
-        /// Whether or not only deterministic instructions are allowed
-        bool deterministic_only = 8;
-        /// The WebAssembly multi memory proposal
-        bool multi_memory = 9;
-        /// The WebAssembly exception handling proposal
-        bool exceptions = 10;
-        /// The WebAssembly memory64 proposal
-        bool memory64 = 11;
-      }
-
-      uint32 num_locals = 1;
-      repeated Local locals = 2;
-      repeated Type operands = 3;
-      repeated Frame control = 4;
-
-      WasmFeatures features = 5;
-
-    }
-    OperatorValidator validator = 1;
-  }
-
-  // TODO define function body data
-  FunctionBody body = 1;
-  // bytes validator = 2;
-}
-
-message CompileFunctionRequest {
-  uint32 index = 1;
-  FunctionBodyData data = 2;
-  google.protobuf.Any types = 3;
-  google.protobuf.Any tunables = 4;
-}
-
-message ModuleTranslation {
-  // Use serde serialize
-  google.protobuf.Any module = 1;
-  repeated uint32 escaped_funcs = 2;
-  repeated uint32 exported_signatures = 3;
-  // Ommitted fields
-  // DebugInfoData debuginfo = 4;
-  // bool has_unparsed_debuginfo = 4;
-
 }
 
 message NewBuilderResponse {

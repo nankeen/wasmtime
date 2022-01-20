@@ -12,6 +12,7 @@ object = { version = "0.26.0", default-features = false, features = ['write'] }
 target-lexicon = "0.12"
 wasmtime-environ = { path = "../environ", version = "0.30.0" }
 wasmtime-cranelift = { path = "../cranelift", version = "0.30.0", features = ["enable-serde"]}
+wasmtime-jit = { path = "../jit", version = "0.30.0" }
 wasmparser = "0.80.0"
 
 prost = "0.9"
@@ -24,6 +25,10 @@ tokio = { version = "1.13.0", features = ["rt-multi-thread", "net", "macros", "s
 tokio-util = { version = "0.6.9", features = ["compat"] }
 
 uuid = { version = "0.8", features = ["v4"] }
+
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-futures = "0.2"
 
 [build-dependencies]
 tonic-build = "0.6"
