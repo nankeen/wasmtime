@@ -4,10 +4,10 @@
  */
 use crate::skylift_grpc::{
     triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
-    Triple,
+    Triple, WasmFeatures,
 };
 
-pub(crate) fn from_triple(triple: &Triple) -> Option<target_lexicon::Triple> {
+pub fn from_triple(triple: &Triple) -> Option<target_lexicon::Triple> {
     let architecture = from_architecture(Architecture::from_i32(triple.architecture)?);
     let binary_format = from_binary_format(BinaryFormat::from_i32(triple.binary_format)?);
     let environment = from_environment(Environment::from_i32(triple.environment)?);
@@ -24,7 +24,7 @@ pub(crate) fn from_triple(triple: &Triple) -> Option<target_lexicon::Triple> {
     })
 }
 
-pub(crate) fn from_architecture(architecture: Architecture) -> target_lexicon::Architecture {
+pub fn from_architecture(architecture: Architecture) -> target_lexicon::Architecture {
     match architecture {
         Architecture::Unknown => target_lexicon::Architecture::Unknown,
         Architecture::Arm => {
@@ -229,7 +229,7 @@ pub(crate) fn from_architecture(architecture: Architecture) -> target_lexicon::A
     }
 }
 
-pub(crate) fn from_binary_format(bin_fmt: BinaryFormat) -> target_lexicon::BinaryFormat {
+pub fn from_binary_format(bin_fmt: BinaryFormat) -> target_lexicon::BinaryFormat {
     match bin_fmt {
         BinaryFormat::Unknown => target_lexicon::BinaryFormat::Unknown,
         BinaryFormat::Elf => target_lexicon::BinaryFormat::Elf,
@@ -239,7 +239,7 @@ pub(crate) fn from_binary_format(bin_fmt: BinaryFormat) -> target_lexicon::Binar
     }
 }
 
-pub(crate) fn from_environment(env: Environment) -> target_lexicon::Environment {
+pub fn from_environment(env: Environment) -> target_lexicon::Environment {
     match env {
         Environment::Unknown => target_lexicon::Environment::Unknown,
         Environment::AmdGiz => target_lexicon::Environment::AmdGiz,
@@ -269,7 +269,7 @@ pub(crate) fn from_environment(env: Environment) -> target_lexicon::Environment 
     }
 }
 
-pub(crate) fn from_operating_system(os: OperatingSystem) -> target_lexicon::OperatingSystem {
+pub fn from_operating_system(os: OperatingSystem) -> target_lexicon::OperatingSystem {
     match os {
         OperatingSystem::Unknown => target_lexicon::OperatingSystem::Unknown,
         OperatingSystem::AmdHsa => target_lexicon::OperatingSystem::AmdHsa,
@@ -308,7 +308,7 @@ pub(crate) fn from_operating_system(os: OperatingSystem) -> target_lexicon::Oper
     }
 }
 
-pub(crate) fn from_vendor(vendor: Vendor) -> target_lexicon::Vendor {
+pub fn from_vendor(vendor: Vendor) -> target_lexicon::Vendor {
     match vendor {
         Vendor::Unknown => target_lexicon::Vendor::Unknown,
         Vendor::Amd => target_lexicon::Vendor::Amd,
@@ -321,5 +321,25 @@ pub(crate) fn from_vendor(vendor: Vendor) -> target_lexicon::Vendor {
         Vendor::Sun => target_lexicon::Vendor::Sun,
         Vendor::Uwp => target_lexicon::Vendor::Uwp,
         Vendor::Wrs => target_lexicon::Vendor::Wrs,
+    }
+}
+
+pub fn from_tunables(tunables: &prost_types::Any) -> Option<wasmtime_environ::Tunables> {
+    bincode::deserialize(&tunables.value).ok()
+}
+
+pub fn from_wasm_features(features: &WasmFeatures) -> wasmparser::WasmFeatures {
+    wasmparser::WasmFeatures {
+        reference_types: features.reference_types,
+        multi_value: features.multi_value,
+        bulk_memory: features.bulk_memory,
+        module_linking: features.module_linking,
+        simd: features.simd,
+        threads: features.threads,
+        tail_call: features.tail_call,
+        deterministic_only: features.deterministic_only,
+        multi_memory: features.multi_memory,
+        exceptions: features.exceptions,
+        memory64: features.memory64,
     }
 }

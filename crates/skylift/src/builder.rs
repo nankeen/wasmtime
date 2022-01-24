@@ -4,7 +4,7 @@
 //! well as providing a function to return the default configuration to build.
 
 use crate::{
-    client::Compiler,
+    compiler::Compiler,
     convert::{internal2rpc, rpc2internal},
     skylift_grpc::{compiler_client::CompilerClient, SetRequest},
     RemoteId,

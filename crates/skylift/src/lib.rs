@@ -6,11 +6,11 @@ pub mod skylift_grpc {
     tonic::include_proto!("skylift");
 }
 
-pub mod client;
-mod convert;
-mod server;
+mod builder;
+pub mod compiler;
+pub mod convert;
 
-pub use server::run_server;
+pub use builder::builder;
 use skylift_grpc::NewBuilderResponse;
 use tonic::{metadata::MetadataValue, service::Interceptor, Request, Status};
 use uuid::Uuid;
@@ -18,10 +18,10 @@ use uuid::Uuid;
 pub const REMOTE_ID_HEADER: &str = "remote_id";
 
 #[derive(std::hash::Hash, Debug, PartialEq, Eq, Clone)]
-pub(crate) struct RemoteId(String);
+pub struct RemoteId(String);
 
 impl RemoteId {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self(Uuid::new_v4().to_hyphenated_ref().to_string())
     }
 }

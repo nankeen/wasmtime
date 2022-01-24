@@ -46,10 +46,10 @@ service Compiler {
   // Compiler
   rpc GetFlags(google.protobuf.Empty) returns (FlagMap);
   rpc GetISAFlags(google.protobuf.Empty) returns (FlagMap);
-  rpc BuildArtifacts(BuildArtifactsRequest) returns (BuildArtifactsResponse);
+  rpc BuildModule(BuildModuleRequest) returns (BuildModuleResponse);
 }
 
-message BuildArtifactsRequest {
+message BuildModuleRequest {
   bytes wasm = 1;
   google.protobuf.Any tunables = 2;
   WasmFeatures features = 3;
@@ -57,10 +57,20 @@ message BuildArtifactsRequest {
 }
 
 message WasmFeatures {
-  // TODO
+  bool reference_types = 1;
+  bool multi_value = 2;
+  bool bulk_memory = 3;
+  bool module_linking = 4;
+  bool simd = 5;
+  bool threads = 6;
+  bool tail_call = 7;
+  bool deterministic_only = 8;
+  bool multi_memory = 9;
+  bool exceptions = 10;
+  bool memory64 = 11;
 }
 
-message BuildArtifactsResponse {
+message BuildModuleResponse {
   google.protobuf.Any serialized_module = 1;
 }
 

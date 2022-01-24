@@ -1,17 +1,20 @@
+use wasmtime_environ::Tunables;
+
 use super::to_any_bincode;
 use std::collections::BTreeMap;
 
 use crate::skylift_grpc::{
-    triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor}, Triple, FlagMap
+    triple::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor},
+    BuildModuleRequest, FlagMap, Triple, WasmFeatures,
 };
 
-pub(crate) fn from_flag_map(flag_map: &BTreeMap<String, wasmtime_environ::FlagValue>) -> FlagMap {
+pub fn from_flag_map(flag_map: &BTreeMap<String, wasmtime_environ::FlagValue>) -> FlagMap {
     FlagMap {
         flags: to_any_bincode(flag_map),
     }
 }
 
-pub(crate) fn from_triple(triple: &target_lexicon::Triple) -> Triple {
+pub fn from_triple(triple: &target_lexicon::Triple) -> Triple {
     let architecture = from_architecture(&triple.architecture) as i32;
     let binary_format = from_binary_format(&triple.binary_format) as i32;
     let environment = from_environment(&triple.environment) as i32;
@@ -26,7 +29,7 @@ pub(crate) fn from_triple(triple: &target_lexicon::Triple) -> Triple {
     }
 }
 
-pub(crate) fn from_architecture(architecture: &target_lexicon::Architecture) -> Architecture {
+pub fn from_architecture(architecture: &target_lexicon::Architecture) -> Architecture {
     match architecture {
         target_lexicon::Architecture::Arm(target_lexicon::ArmArchitecture::Arm) => {
             Architecture::Arm
@@ -228,7 +231,7 @@ pub(crate) fn from_architecture(architecture: &target_lexicon::Architecture) -> 
     }
 }
 
-pub(crate) fn from_binary_format(bin_fmt: &target_lexicon::BinaryFormat) -> BinaryFormat {
+pub fn from_binary_format(bin_fmt: &target_lexicon::BinaryFormat) -> BinaryFormat {
     match bin_fmt {
         target_lexicon::BinaryFormat::Elf => BinaryFormat::Elf,
         target_lexicon::BinaryFormat::Coff => BinaryFormat::Coff,
@@ -238,7 +241,7 @@ pub(crate) fn from_binary_format(bin_fmt: &target_lexicon::BinaryFormat) -> Bina
     }
 }
 
-pub(crate) fn from_environment(env: &target_lexicon::Environment) -> Environment {
+pub fn from_environment(env: &target_lexicon::Environment) -> Environment {
     match env {
         target_lexicon::Environment::AmdGiz => Environment::AmdGiz,
         target_lexicon::Environment::Android => Environment::Android,
@@ -268,7 +271,7 @@ pub(crate) fn from_environment(env: &target_lexicon::Environment) -> Environment
     }
 }
 
-pub(crate) fn from_operating_system(os: &target_lexicon::OperatingSystem) -> OperatingSystem {
+pub fn from_operating_system(os: &target_lexicon::OperatingSystem) -> OperatingSystem {
     match os {
         target_lexicon::OperatingSystem::AmdHsa => OperatingSystem::AmdHsa,
         target_lexicon::OperatingSystem::Bitrig => OperatingSystem::Bitrig,
@@ -302,7 +305,7 @@ pub(crate) fn from_operating_system(os: &target_lexicon::OperatingSystem) -> Ope
     }
 }
 
-pub(crate) fn from_vendor(vendor: &target_lexicon::Vendor) -> Vendor {
+pub fn from_vendor(vendor: &target_lexicon::Vendor) -> Vendor {
     match vendor {
         target_lexicon::Vendor::Amd => Vendor::Amd,
         target_lexicon::Vendor::Apple => Vendor::Apple,
@@ -315,5 +318,35 @@ pub(crate) fn from_vendor(vendor: &target_lexicon::Vendor) -> Vendor {
         target_lexicon::Vendor::Uwp => Vendor::Uwp,
         target_lexicon::Vendor::Wrs => Vendor::Wrs,
         _ => Vendor::Unknown,
+    }
+}
+
+pub fn from_wasm_features(features: &wasmparser::WasmFeatures) -> WasmFeatures {
+    WasmFeatures {
+        reference_types: features.reference_types,
+        multi_value: features.multi_value,
+        bulk_memory: features.bulk_memory,
+        module_linking: features.module_linking,
+        simd: features.simd,
+        threads: features.threads,
+        tail_call: features.tail_call,
+        deterministic_only: features.deterministic_only,
+        multi_memory: features.multi_memory,
+        exceptions: features.exceptions,
+        memory64: features.memory64,
+    }
+}
+
+pub fn from_build_module_req(
+    wasm: &[u8],
+    tunables: &Tunables,
+    features: &wasmparser::WasmFeatures,
+    paged_memory_initialization: bool,
+) -> BuildModuleRequest {
+    BuildModuleRequest {
+        wasm: wasm.to_vec(),
+        tunables: to_any_bincode(tunables),
+        features: Some(from_wasm_features(features)),
+        paged_memory_initialization,
     }
 }

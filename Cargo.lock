@@ -3216,6 +3216,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "skylift-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cranelift-codegen",
+ "cranelift-wasm",
+ "object 0.26.2",
+ "prost",
+ "prost-types",
+ "rayon",
+ "serde",
+ "skylift",
+ "target-lexicon",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tonic-build",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber 0.3.5",
+ "uuid",
+ "wasmparser 0.80.2",
+ "wasmtime",
+ "wasmtime-cranelift",
+ "wasmtime-environ",
+ "wasmtime-jit",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4221,7 +4251,7 @@ dependencies = [
  "object 0.26.2",
  "pretty_env_logger",
  "rayon",
- "skylift",
+ "skylift-server",
  "structopt",
  "target-lexicon",
  "tempfile",

@@ -47,6 +47,7 @@
 //!   using wasmtime artifacts across versions.
 //!
 //! This format is implemented by the `to_bytes` and `from_mmap` function.
+#![allow(missing_docs)]
 
 use crate::{Engine, Module, ModuleVersionStrategy};
 use anyhow::{anyhow, bail, Context, Result};
@@ -267,6 +268,30 @@ impl<'a> SerializedModule<'a> {
                 features: (&engine.config().features).into(),
                 module_upvars,
                 types,
+            },
+        }
+    }
+
+    #[cfg(compiler)]
+    pub fn from_raw(
+        artifacts: impl IntoIterator<Item = &'a MmapVec>,
+        target: &str,
+        shared_flags: BTreeMap<String, FlagValue>,
+        isa_flags: BTreeMap<String, FlagValue>,
+        tunables: Tunables,
+        features: &wasmparser::WasmFeatures,
+        types: &'a TypeTables,
+    ) -> Self {
+        Self {
+            artifacts: artifacts.into_iter().map(MyCow::Borrowed).collect(),
+            metadata: Metadata {
+                target: target.to_string(),
+                shared_flags,
+                isa_flags,
+                tunables,
+                features: features.into(),
+                module_upvars: Vec::new(),
+                types: MyCow::Borrowed(types),
             },
         }
     }

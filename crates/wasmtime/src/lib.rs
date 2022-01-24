@@ -398,7 +398,7 @@ pub use crate::instance::{Instance, InstancePre};
 pub use crate::limits::*;
 pub use crate::linker::*;
 pub use crate::memory::*;
-pub use crate::module::{FrameInfo, FrameSymbol, Module};
+pub use crate::module::{FrameInfo, FrameSymbol, Module, SerializedModule};
 pub use crate::r#ref::ExternRef;
 pub use crate::store::{
     AsContext, AsContextMut, CallHook, InterruptHandle, Store, StoreContext, StoreContextMut,

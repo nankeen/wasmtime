@@ -1,5 +1,5 @@
 use anyhow::Result;
-use skylift::run_server;
+use skylift_server::run_server;
 use structopt::{clap::AppSettings, StructOpt};
 
 lazy_static::lazy_static! {

@@ -1332,10 +1332,17 @@ impl Config {
 #[cfg(compiler)]
 fn compiler_builder(strategy: Strategy) -> Result<Box<dyn CompilerBuilder>> {
     match strategy {
-        Strategy::Auto | Strategy::Skylift => Ok(skylift::client::builder()),
-        Strategy::Cranelift => Ok(wasmtime_cranelift::builder()),
+        #[cfg(not(feature = "remote"))]
+        Strategy::Auto => Ok(wasmtime_cranelift::builder()),
+        #[cfg(not(feature = "remote"))]
+        Strategy::Skylift => {
+            anyhow::bail!("remote compilation strategy wasn't enabled at compile time");
+        }
+        #[cfg(feature = "remote")]
+        Strategy::Auto | Strategy::Skylift => Ok(skylift::builder()),
         #[cfg(feature = "lightbeam")]
         Strategy::Lightbeam => unimplemented!(),
+        Strategy::Cranelift => Ok(wasmtime_cranelift::builder()),
         #[cfg(not(feature = "lightbeam"))]
         Strategy::Lightbeam => {
             anyhow::bail!("lightbeam compilation strategy wasn't enabled at compile time");

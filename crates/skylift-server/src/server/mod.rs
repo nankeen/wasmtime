@@ -1,10 +1,9 @@
 pub(crate) mod service;
 mod session;
-// pub(crate) mod compiler;
 
-use crate::skylift_grpc::compiler_server::CompilerServer;
 use anyhow::Result;
 use session::CompilerSession;
+use skylift::skylift_grpc::compiler_server::CompilerServer;
 use tonic::transport::Server;
 
 #[tokio::main]
@@ -19,4 +18,3 @@ pub async fn run_server(addr: &str) -> Result<()> {
         .await?;
     Ok(())
 }
-

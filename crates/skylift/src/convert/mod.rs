@@ -4,8 +4,8 @@
 //! If there is a better way to do this let me know. I've experimented with PROST macros but
 //! eventually decided to not as it requires tampering with `target_lexicon` types.
 
-pub(crate) mod internal2rpc;
-pub(crate) mod rpc2internal;
+pub mod internal2rpc;
+pub mod rpc2internal;
 
 use prost_types::Any;
 use serde::Serialize;

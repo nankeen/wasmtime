@@ -1,18 +1,19 @@
 use super::CompilerSession;
-use crate::{
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use skylift::{
     convert::{internal2rpc, rpc2internal},
     skylift_grpc::{
-        compiler_server::Compiler, BuildArtifactsRequest, BuildArtifactsResponse, BuildResponse,
+        compiler_server::Compiler, BuildModuleRequest, BuildModuleResponse, BuildResponse,
         EnableRequest, FlagMap, NewBuilderResponse, SetRequest, SettingsResponse, Triple,
     },
     RemoteId, REMOTE_ID_HEADER,
 };
-use anyhow::Context;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 use tracing::{instrument, trace};
 use wasmtime_environ::ModuleEnvironment;
+use wasmtime_jit::TypeTables;
 
 #[derive(Default)]
 pub(crate) struct CompilerService {
@@ -130,93 +131,122 @@ impl Compiler for CompilerService {
         Ok(response)
     }
 
-    async fn build_artifacts(
+    async fn build_module(
         &self,
-        req: Request<BuildArtifactsRequest>,
-    ) -> Result<Response<BuildArtifactsResponse>, Status> {
+        req: Request<BuildModuleRequest>,
+    ) -> Result<Response<BuildModuleResponse>, Status> {
         // Require tunables, features, paged_memory_initialization
-        let tunables = rpc2internal::from_tunables();
-        let features = rpc2internal::from_wasm_features();
-        let paged_memory_initialization = false;
-        let wasm: &[u8] = &[53, 32];
+        let wasm = &req.get_ref().wasm;
+        let tunables = req
+            .get_ref()
+            .tunables
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tunables argument"))
+            .map(rpc2internal::from_tunables)?
+            .ok_or_else(|| Status::invalid_argument("could not deserialize tunable argument"))?;
+        let features = req
+            .get_ref()
+            .features
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing features argument"))
+            .map(rpc2internal::from_wasm_features)?;
+        let paged_memory_initialization = req.get_ref().paged_memory_initialization;
 
         // First a `ModuleEnvironment` is created which records type information
         // about the wasm module. This is where the WebAssembly is parsed and
         // validated. Afterwards `types` will have all the type information for
         // this module.
-        let (main_module, translations, types) =
-            ModuleEnvironment::new(tunables, features)
-                .translate(&wasm)
-                .map_err(|_| Status::invalid_argument("failed to parse WebAssembly module"))?;
+        let (_, translations, types) = ModuleEnvironment::new(&tunables, &features)
+            .translate(&wasm)
+            .map_err(|_| Status::invalid_argument("failed to parse WebAssembly module"))?;
 
-        // Perform a two-level map/reduce here to get the final list of
-        // compilation artifacts. The first level of map/reduce maps over all
-        // modules found and reduces to collection into a vector. The second
-        // level of map/reduce here maps over all functions within each wasm
-        // module found and collects into an ELF image via `emit_obj`.
-        let list = {
-            // Obtain session
-            self.get_session(&get_remote_id(&req)?)
-                .await?
-                .read()
-                .await
-                .map_compiler(|compiler| -> anyhow::Result<_> {
-                    engine.run_maybe_parallel(
-                        translations,
-                        |mut translation| -> anyhow::Result<_> {
-                            let functions = std::mem::take(&mut translation.function_body_inputs);
-                            let functions = functions.into_iter().collect::<Vec<_>>();
+        // Obtain session
+        self.get_session(&get_remote_id(&req)?)
+            .await?
+            .read()
+            .await
+            .map_compiler(|compiler| -> anyhow::Result<_> {
+                // Perform a two-level map/reduce here to get the final list of
+                // compilation artifacts. The first level of map/reduce maps over all
+                // modules found and reduces to collection into a vector. The second
+                // level of map/reduce here maps over all functions within each wasm
+                // module found and collects into an ELF image via `emit_obj`.
+                let artifacts = translations
+                    .into_par_iter()
+                    .map(|mut translation| -> anyhow::Result<_> {
+                        let functions = std::mem::take(&mut translation.function_body_inputs);
+                        let functions = functions.into_iter().collect::<Vec<_>>();
 
-                            let funcs = engine
-                                .run_maybe_parallel(functions, |(index, func)| {
-                                    engine.compiler().compile_function(
-                                        &translation,
-                                        index,
-                                        func,
-                                        tunables,
-                                        &types,
-                                    )
-                                })?
-                                .into_iter()
-                                .collect();
+                        let funcs = functions
+                            .into_par_iter()
+                            .map(|(index, func)| {
+                                compiler.compile_function(
+                                    &translation,
+                                    index,
+                                    func,
+                                    &tunables,
+                                    &types,
+                                )
+                            })
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .collect();
 
-                            let mut obj = engine.compiler().object()?;
-                            let (funcs, trampolines) = engine.compiler().emit_obj(
-                                &translation,
-                                &types,
-                                funcs,
-                                tunables.generate_native_debuginfo,
-                                &mut obj,
-                            )?;
+                        let mut obj = compiler.object()?;
+                        let (funcs, trampolines) = compiler.emit_obj(
+                            &translation,
+                            &types,
+                            funcs,
+                            tunables.generate_native_debuginfo,
+                            &mut obj,
+                        )?;
 
-                            // If configured, attempt to use paged memory initialization
-                            // instead of the default mode of memory initialization
-                            if paged_memory_initialization {
-                                translation.try_paged_init();
-                            }
+                        // If configured, attempt to use paged memory initialization
+                        // instead of the default mode of memory initialization
+                        if paged_memory_initialization {
+                            translation.try_paged_init();
+                        }
 
-                            let (mmap, info) = wasmtime_jit::finish_compile(
-                                translation,
-                                obj,
-                                funcs,
-                                trampolines,
-                                tunables,
-                            )?;
-                            Ok((mmap, Some(info)))
-                        },
-                    )?
-                })
-        };
+                        let (mmap, _) = wasmtime_jit::finish_compile(
+                            translation,
+                            obj,
+                            funcs,
+                            trampolines,
+                            &tunables,
+                        )?;
+                        Ok(mmap)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
 
-        Ok((
-            main_module,
-            list,
-            TypeTables {
-                wasm_signatures: types.wasm_signatures,
-                module_signatures: types.module_signatures,
-                instance_signatures: types.instance_signatures,
-            },
-        ))
+                let types = TypeTables {
+                    wasm_signatures: types.wasm_signatures,
+                    module_signatures: types.module_signatures,
+                    instance_signatures: types.instance_signatures,
+                };
+                // artifacts: impl IntoIterator<Item = &'a MmapVec>,
+                // target: &str,
+                // shared_flags: BTreeMap<String, FlagValue>,
+                // isa_flags: BTreeMap<String, FlagValue>,
+                // tunables: Tunables,
+                // features: &wasmparser::WasmFeatures,
+                // types: &'a TypeTables,
+                Ok(Response::new(BuildModuleResponse {
+                    serialized_module: Some(prost_types::Any {
+                        value: wasmtime::SerializedModule::from_raw(
+                            &artifacts,
+                            &compiler.triple().to_string(),
+                            compiler.flags(),
+                            compiler.isa_flags(),
+                            tunables,
+                            &features,
+                            &types,
+                        )
+                        .to_bytes(&wasmtime::ModuleVersionStrategy::WasmtimeVersion)?,
+                        ..Default::default()
+                    }),
+                }))
+            })?
+            .map_err(|msg| Status::internal(format!("compilation failed {}", msg)))
     }
 
     async fn get_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {

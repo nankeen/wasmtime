@@ -226,6 +226,18 @@ pub trait Compiler: Send + Sync {
 
     /// Same as [`Compiler::flags`], but ISA-specific (a cranelift-ism)
     fn isa_flags(&self) -> BTreeMap<String, FlagValue>;
+
+    /// Compile
+    #[cfg(feature = "remote")]
+    fn build_module(
+        &self,
+        _wasm: &[u8],
+        _tunables: &Tunables,
+        _features: &wasmparser::WasmFeatures,
+        _paged_memory_initialization: bool,
+    ) -> Result<Vec<u8>> {
+        unimplemented!("build_module is not implemented");
+    }
 }
 
 /// Value of a configured setting for a [`Compiler`]
