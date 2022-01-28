@@ -116,7 +116,7 @@ impl Compiler for CompilerService {
     async fn build(&self, req: Request<()>) -> Result<Response<BuildResponse>, Status> {
         // Get the builder to build a compiler according to the settings so far
         let remote_id = get_remote_id(&req)?;
-        trace!("{:?}", remote_id);
+        trace!("building remote compiler with remote id: {:?}", remote_id);
         let session_lock = self.get_session(&remote_id).await?;
         let mut session = session_lock.write().await;
 
@@ -127,15 +127,18 @@ impl Compiler for CompilerService {
         });
 
         *session = CompilerSession::Compile(compiler);
+        trace!("build end");
 
         Ok(response)
     }
 
+    #[instrument(skip_all)]
     async fn build_module(
         &self,
         req: Request<BuildModuleRequest>,
     ) -> Result<Response<BuildModuleResponse>, Status> {
         // Require tunables, features, paged_memory_initialization
+        trace!("building module");
         let wasm = &req.get_ref().wasm;
         let tunables = req
             .get_ref()

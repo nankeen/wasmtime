@@ -5,9 +5,10 @@ use crate::{
 use anyhow::Result;
 use cranelift_wasm::{DefinedFuncIndex, WasmFuncType};
 use object::write::Object;
-use std::{any::Any, collections::BTreeMap, sync::Arc};
+use std::{any::Any, collections::BTreeMap, fmt, sync::Arc};
 use tokio::runtime::Runtime;
 use tonic::{codegen::InterceptedService, transport::Channel, Request};
+use tracing::{instrument, trace};
 use wasmtime_environ::{
     CompileError, FlagValue, FunctionBodyData, FunctionInfo, ModuleTranslation, PrimaryMap,
     Trampoline, Tunables, TypeTables,
@@ -17,25 +18,50 @@ use wasmtime_environ::{
 ///
 /// It is a thin wrapper on top of tonic gRPC client specifically for the
 /// `Compiler` service.
-#[derive(Clone)]
 pub struct Compiler {
     /// `client` - Handler for client session, according to tonic specs this should
     /// be cheap to clone as the underlying implementation uses mpsc channel.
     client: CompilerClient<InterceptedService<Channel, RemoteId>>,
     runtime: Arc<Runtime>,
     triple: target_lexicon::Triple,
+    flags: BTreeMap<String, FlagValue>,
+    isa_flags: BTreeMap<String, FlagValue>,
 }
 
 impl Compiler {
     pub(crate) fn new(
-        client: CompilerClient<InterceptedService<Channel, RemoteId>>,
+        mut client: CompilerClient<InterceptedService<Channel, RemoteId>>,
         runtime: Arc<Runtime>,
         triple: target_lexicon::Triple,
     ) -> Self {
+        let flags = bincode::deserialize(
+            &runtime
+                .block_on(client.get_flags(Request::new(())))
+                .unwrap()
+                .into_inner()
+                .flags
+                .expect("could not get flags")
+                .value,
+        )
+        .expect("could not deserialize flag");
+
+        let isa_flags = bincode::deserialize(
+            &runtime
+                .block_on(client.get_isa_flags(Request::new(())))
+                .unwrap()
+                .into_inner()
+                .flags
+                .expect("could not get isa flags")
+                .value,
+        )
+        .expect("could not deserialize isa flag");
+
         Self {
             client,
             runtime,
             triple,
+            flags,
+            isa_flags,
         }
     }
 }
@@ -72,30 +98,25 @@ impl wasmtime_environ::Compiler for Compiler {
         unimplemented!("emit_trampoline_obj should not be used with remote compiler")
     }
 
+    #[instrument]
     fn triple(&self) -> &target_lexicon::Triple {
         &self.triple
     }
 
+    #[instrument]
     fn flags(&self) -> BTreeMap<String, FlagValue> {
-        let mut client = self.client.clone();
-        let flags = self
-            .runtime
-            .block_on(client.get_flags(Request::new(())))
-            .unwrap()
-            .into_inner();
-        bincode::deserialize(&flags.flags.expect("could not get flags").value).unwrap()
+        self.flags.clone()
     }
 
+    #[instrument]
     fn isa_flags(&self) -> BTreeMap<String, FlagValue> {
-        let mut client = self.client.clone();
-        let flags = self
-            .runtime
-            .block_on(client.get_isa_flags(Request::new(())))
-            .unwrap()
-            .into_inner();
-        bincode::deserialize(&flags.flags.expect("could not get isa flags").value).unwrap()
+        self.isa_flags.clone()
     }
 
+    #[instrument(
+        level = "info",
+        skip(tunables, wasm, features, paged_memory_initialization)
+    )]
     fn build_module(
         &self,
         wasm: &[u8],
@@ -112,5 +133,13 @@ impl wasmtime_environ::Compiler for Compiler {
             .serialized_module
             .ok_or_else(|| anyhow::Error::msg("could not find serialized module"))?;
         Ok(resp.value)
+    }
+}
+
+impl fmt::Debug for Compiler {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("Skylift Compiler")
+            .field("target", &self.triple)
+            .finish()
     }
 }

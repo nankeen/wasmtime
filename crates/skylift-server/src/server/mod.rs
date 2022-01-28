@@ -8,7 +8,6 @@ use tonic::transport::Server;
 
 #[tokio::main]
 pub async fn run_server(addr: &str) -> Result<()> {
-    tracing_subscriber::fmt::init();
     let compiler_service = service::CompilerService::default();
     let compiler_server = CompilerServer::new(compiler_service);
 

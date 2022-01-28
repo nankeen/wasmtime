@@ -10,9 +10,13 @@ mod builder;
 pub mod compiler;
 pub mod convert;
 
+use std::path::Path;
+
 pub use builder::builder;
 use skylift_grpc::NewBuilderResponse;
 use tonic::{metadata::MetadataValue, service::Interceptor, Request, Status};
+use tracing_flame::FlameLayer;
+use tracing_subscriber::{filter, fmt, prelude::*};
 use uuid::Uuid;
 
 pub const REMOTE_ID_HEADER: &str = "remote_id";
@@ -60,6 +64,19 @@ impl Interceptor for RemoteId {
         );
         Ok(req)
     }
+}
+
+pub fn setup_global_subscriber(log_path: impl AsRef<Path>) -> impl Drop {
+    let fmt_layer = fmt::Layer::default();
+
+    let (flame_layer, _guard) = FlameLayer::with_file(log_path).unwrap();
+
+    tracing_subscriber::registry()
+        .with(filter::EnvFilter::from_default_env())
+        .with(fmt_layer)
+        .with(flame_layer.with_threads_collapsed(true))
+        .init();
+    _guard
 }
 
 #[cfg(test)]
