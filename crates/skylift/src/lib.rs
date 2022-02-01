@@ -10,13 +10,11 @@ mod builder;
 pub mod compiler;
 pub mod convert;
 
-use std::path::Path;
-
+use anyhow::Result;
 pub use builder::builder;
 use skylift_grpc::NewBuilderResponse;
 use tonic::{metadata::MetadataValue, service::Interceptor, Request, Status};
-use tracing_flame::FlameLayer;
-use tracing_subscriber::{filter, fmt, prelude::*};
+use tracing_subscriber::{fmt, prelude::*};
 use uuid::Uuid;
 
 pub const REMOTE_ID_HEADER: &str = "remote_id";
@@ -66,17 +64,19 @@ impl Interceptor for RemoteId {
     }
 }
 
-pub fn setup_global_subscriber(log_path: impl AsRef<Path>) -> impl Drop {
+pub fn setup_global_subscriber(service_name: &str) -> Result<()> {
+    let jaeger_tracer = opentelemetry_jaeger::new_pipeline()
+        .with_service_name(service_name)
+        .install_simple()?;
+
     let fmt_layer = fmt::Layer::default();
 
-    let (flame_layer, _guard) = FlameLayer::with_file(log_path).unwrap();
-
     tracing_subscriber::registry()
-        .with(filter::EnvFilter::from_default_env())
+        .with(tracing_subscriber::EnvFilter::new("trace,h2=info,regalloc=error,cranelift_codegen=info,tokio_util=info,hyper=info,tower=info,want=info,mio=info,tonic=info"))
         .with(fmt_layer)
-        .with(flame_layer.with_threads_collapsed(true))
-        .init();
-    _guard
+        .with(tracing_opentelemetry::layer().with_tracer(jaeger_tracer))
+        .try_init()?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -160,7 +160,7 @@ struct CommonOptions {
     cranelift: bool,
 
     /// Disable logging.
-    #[structopt(long, conflicts_with_all = &["log_to_files", "trace_file"])]
+    #[structopt(long, conflicts_with = "log_to_files")]
     disable_logging: bool,
 
     /// Log to per-thread log files instead of stderr.
@@ -276,10 +276,6 @@ struct CommonOptions {
     /// Enable Cranelift's internal NaN canonicalization
     #[structopt(long)]
     enable_cranelift_nan_canonicalization: bool,
-
-    /// Enable tracing instrumentation
-    #[structopt(long, parse(from_os_str))]
-    trace_file: Option<PathBuf>,
 }
 
 impl CommonOptions {
@@ -290,8 +286,6 @@ impl CommonOptions {
         if self.log_to_files {
             let prefix = "wasmtime.dbg.";
             init_file_per_thread_logger(prefix);
-        } else if let Some(log_path) = &self.trace_file {
-            skylift::setup_global_subscriber(log_path);
         } else {
             pretty_env_logger::init();
         }

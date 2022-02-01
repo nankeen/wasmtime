@@ -11,7 +11,7 @@ use skylift::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
-use tracing::{instrument, trace};
+use tracing::{instrument, span, Level};
 use wasmtime_environ::ModuleEnvironment;
 use wasmtime_jit::TypeTables;
 
@@ -32,6 +32,7 @@ fn get_remote_id<T>(req: &Request<T>) -> Result<RemoteId, Status> {
 }
 
 impl CompilerService {
+    #[instrument(skip(self))]
     async fn get_session(
         &self,
         remote_id: &RemoteId,
@@ -49,6 +50,7 @@ impl CompilerService {
 
 #[tonic::async_trait]
 impl Compiler for CompilerService {
+    #[instrument(skip_all)]
     async fn new_builder(&self, _req: Request<()>) -> Result<Response<NewBuilderResponse>, Status> {
         let id = RemoteId::new();
         let mut sessions = self.sessions.write().await;
@@ -65,6 +67,7 @@ impl Compiler for CompilerService {
         Ok(response)
     }
 
+    #[instrument(skip_all)]
     async fn set_target(&self, req: Request<Triple>) -> Result<Response<()>, Status> {
         let triple = rpc2internal::from_triple(req.get_ref())
             .ok_or_else(|| Status::invalid_argument("bad triple provided"))?;
@@ -89,6 +92,7 @@ impl Compiler for CompilerService {
         session.map_builder(|builder| Response::new(internal2rpc::from_triple(builder.triple())))
     }
 
+    #[instrument(skip_all)]
     async fn set_settings(&self, req: Request<SetRequest>) -> Result<Response<()>, Status> {
         let settings = req.get_ref();
 
@@ -104,10 +108,12 @@ impl Compiler for CompilerService {
         })?
     }
 
+    #[instrument(skip_all)]
     async fn enable_settings(&self, _req: Request<EnableRequest>) -> Result<Response<()>, Status> {
         Err(Status::unimplemented("not implemented"))
     }
 
+    #[instrument(skip_all)]
     async fn get_settings(&self, _req: Request<()>) -> Result<Response<SettingsResponse>, Status> {
         Err(Status::unimplemented("not implemented"))
     }
@@ -116,7 +122,6 @@ impl Compiler for CompilerService {
     async fn build(&self, req: Request<()>) -> Result<Response<BuildResponse>, Status> {
         // Get the builder to build a compiler according to the settings so far
         let remote_id = get_remote_id(&req)?;
-        trace!("building remote compiler with remote id: {:?}", remote_id);
         let session_lock = self.get_session(&remote_id).await?;
         let mut session = session_lock.write().await;
 
@@ -127,7 +132,6 @@ impl Compiler for CompilerService {
         });
 
         *session = CompilerSession::Compile(compiler);
-        trace!("build end");
 
         Ok(response)
     }
@@ -138,7 +142,7 @@ impl Compiler for CompilerService {
         req: Request<BuildModuleRequest>,
     ) -> Result<Response<BuildModuleResponse>, Status> {
         // Require tunables, features, paged_memory_initialization
-        trace!("building module");
+
         let wasm = &req.get_ref().wasm;
         let tunables = req
             .get_ref()
@@ -252,6 +256,7 @@ impl Compiler for CompilerService {
             .map_err(|msg| Status::internal(format!("compilation failed {}", msg)))
     }
 
+    #[instrument(skip_all)]
     async fn get_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {
         // Retrieve builder id from metadata (headers)
         let session_lock = self.get_session(&get_remote_id(&req)?).await?;
@@ -261,6 +266,7 @@ impl Compiler for CompilerService {
             .map_compiler(|compiler| Response::new(internal2rpc::from_flag_map(&compiler.flags())))
     }
 
+    #[instrument(skip_all)]
     async fn get_isa_flags(&self, req: Request<()>) -> Result<Response<FlagMap>, Status> {
         // Retrieve builder id from metadata (headers)
         let session_lock = self.get_session(&get_remote_id(&req)?).await?;

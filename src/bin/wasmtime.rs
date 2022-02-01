@@ -65,6 +65,8 @@ impl WasmtimeApp {
 }
 
 fn main() -> Result<()> {
+    skylift::setup_global_subscriber(&std::env::var("TRACE_NAME").unwrap())?;
+
     WasmtimeApp::from_iter_safe(std::env::args())
         .unwrap_or_else(|e| match e.kind {
             ErrorKind::HelpDisplayed

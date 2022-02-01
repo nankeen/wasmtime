@@ -12,6 +12,7 @@ use std::{
     process,
 };
 use structopt::{clap::AppSettings, StructOpt};
+use tracing::{instrument, span, Level};
 use wasmtime::{Engine, Func, Linker, Module, Store, Trap, Val, ValType};
 use wasmtime_wasi::sync::{ambient_authority, Dir, WasiCtxBuilder};
 
@@ -141,6 +142,7 @@ pub struct RunCommand {
 
 impl RunCommand {
     /// Executes the command.
+    #[instrument(skip(self))]
     pub fn execute(&self) -> Result<()> {
         self.common.init_logging();
 
@@ -168,6 +170,7 @@ impl RunCommand {
         )?;
 
         // Load the preload wasm modules.
+        let preload_span = span!(Level::TRACE, "preload_modules").entered();
         for (name, path) in self.preloads.iter() {
             // Read the wasm module binary either as `*.wat` or a raw binary
             let module = self.load_module(&engine, path)?;
@@ -179,6 +182,7 @@ impl RunCommand {
                 path.display()
             ))?;
         }
+        preload_span.exit();
 
         // Load the main wasm module.
         match self

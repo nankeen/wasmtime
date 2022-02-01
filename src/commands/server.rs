@@ -1,6 +1,7 @@
 use anyhow::Result;
 use skylift_server::run_server;
 use structopt::{clap::AppSettings, StructOpt};
+use tracing::{info, instrument};
 
 lazy_static::lazy_static! {
     static ref AFTER_HELP: String = {
@@ -18,8 +19,9 @@ pub struct ServerCommand {
 
 impl ServerCommand {
     /// Executes the command
+    #[instrument(skip(self))]
     pub fn execute(&self) -> Result<()> {
-        println!("Starting server on {}", self.host);
+        info!("Starting server on {}", self.host);
 
         run_server(&self.host)
     }

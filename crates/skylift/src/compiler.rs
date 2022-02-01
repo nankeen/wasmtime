@@ -8,7 +8,7 @@ use object::write::Object;
 use std::{any::Any, collections::BTreeMap, fmt, sync::Arc};
 use tokio::runtime::Runtime;
 use tonic::{codegen::InterceptedService, transport::Channel, Request};
-use tracing::{instrument, trace};
+use tracing::instrument;
 use wasmtime_environ::{
     CompileError, FlagValue, FunctionBodyData, FunctionInfo, ModuleTranslation, PrimaryMap,
     Trampoline, Tunables, TypeTables,
