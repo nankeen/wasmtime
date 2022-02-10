@@ -762,8 +762,8 @@ impl StackMapSink {
 /// this `RelocSink` just asserts that it doesn't recieve most of them, but
 /// handles libcall ones.
 #[derive(Default)]
-struct TrampolineRelocSink {
-    relocs: Vec<Relocation>,
+pub struct TrampolineRelocSink {
+    pub relocs: Vec<Relocation>,
 }
 
 impl binemit::RelocSink for TrampolineRelocSink {

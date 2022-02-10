@@ -13,6 +13,7 @@ target-lexicon = "0.12"
 wasmtime-environ = { path = "../environ", version = "0.30.0" }
 wasmtime-cranelift = { path = "../cranelift", version = "0.30.0", features = ["enable-serde"]}
 wasmtime-jit = { path = "../jit", version = "0.30.0" }
+cranelift-native = { path = '../../cranelift/native', version = '0.77.0' }
 wasmparser = "0.80.0"
 
 prost = "0.9"

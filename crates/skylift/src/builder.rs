@@ -10,16 +10,13 @@ use crate::{
     RemoteId,
 };
 use anyhow::{anyhow, Result};
+use cranelift_codegen::{settings::{self, Configurable, SetError}, isa};
 use std::fmt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tonic::{codegen::InterceptedService, transport::Channel, Request};
 use wasmtime_environ::{CompilerBuilder, Setting};
 
-#[derive(Default, Clone)]
-struct BuilderCache {
-    pub triple: Option<target_lexicon::Triple>,
-}
 
 /// [`Builder`] implements `wasmtime_environ::CompilerBuilder`.
 ///
@@ -27,7 +24,8 @@ struct BuilderCache {
 /// `CompilerBuilder` service.
 #[derive(Clone)]
 pub struct Builder {
-    cache: BuilderCache,
+    flags: settings::Builder,
+    isa_flags: isa::Builder,
     /// `client` - Handler for client session, according to tonic specs this should
     /// be cheap to clone as the underlying implementation uses mpsc channel.
     client: CompilerClient<InterceptedService<Channel, RemoteId>>,
@@ -67,10 +65,23 @@ impl Builder {
             Ok::<_, anyhow::Error>((triple, client))
         })?;
 
+        // Mirror remote flags operation
+        let mut flags = settings::builder();
+
+        // There are two possible traps for division, and this way
+        // we get the proper one if code traps.
+        flags
+            .enable("avoid_div_traps")
+            .expect("should be valid flag");
+
+        // We don't use probestack as a stack limit mechanism
+        flags
+            .set("enable_probestack", "false")
+            .expect("should be valid flag");
+
         Ok(Self {
-            cache: BuilderCache {
-                triple: Some(triple),
-            },
+            flags,
+            isa_flags: cranelift_native::builder().expect("host machine is not a supported target"),
             client,
             runtime: Arc::new(runtime),
         })
@@ -80,7 +91,7 @@ impl Builder {
 impl CompilerBuilder for Builder {
     fn triple(&self) -> &target_lexicon::Triple {
         // FIXME: Immutable self borrow is very annoying
-        self.cache.triple.as_ref().unwrap()
+        self.isa_flags.triple()
     }
 
     fn clone(&self) -> Box<dyn CompilerBuilder> {
@@ -92,7 +103,7 @@ impl CompilerBuilder for Builder {
         let request = internal2rpc::from_triple(&target);
         self.runtime
             .block_on(client.set_target(Request::new(request)))?;
-        self.cache.triple = Some(target);
+        self.isa_flags = isa::lookup(target)?;
         Ok(())
     }
 
@@ -104,6 +115,18 @@ impl CompilerBuilder for Builder {
         };
         self.runtime
             .block_on(client.set_settings(Request::new(request)))?;
+
+        // Forward this to Cranelift
+        if let Err(err) = self.flags.set(name, value) {
+            match err {
+                SetError::BadName(_) => {
+                    // Try the target-specific flags.
+                    self.isa_flags.set(name, value)?;
+                }
+                _ => return Err(err.into()),
+            }
+        }
+
         Ok(())
     }
 
@@ -117,10 +140,14 @@ impl CompilerBuilder for Builder {
             .block_on(client.build(Request::new(())))
             .unwrap();
 
+        let isa = self
+            .isa_flags
+            .clone()
+            .finish(settings::Flags::new(self.flags.clone()));
         Box::new(Compiler::new(
             self.client.clone(),
             self.runtime.clone(),
-            self.triple().clone(),
+            isa
         ))
     }
 

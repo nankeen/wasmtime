@@ -3306,6 +3306,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "cranelift-codegen",
+ "cranelift-native",
  "cranelift-wasm",
  "object 0.26.2",
  "opentelemetry",

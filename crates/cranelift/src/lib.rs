@@ -102,6 +102,8 @@ use wasmtime_environ::{
 use serde::{Deserialize, Serialize};
 
 pub use builder::builder;
+pub use compiler::TrampolineRelocSink;
+pub use obj::ObjectBuilder;
 
 mod builder;
 mod compiler;
@@ -116,33 +118,33 @@ type CompiledFunctions = PrimaryMap<DefinedFuncIndex, CompiledFunction>;
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 pub struct CompiledFunction {
     /// The machine code for this function.
-    body: Vec<u8>,
+    pub body: Vec<u8>,
 
     /// The jump tables offsets (in the body).
-    jt_offsets: ir::JumpTableOffsets,
+    pub jt_offsets: ir::JumpTableOffsets,
 
     /// The unwind information.
-    unwind_info: Option<UnwindInfo>,
+    pub unwind_info: Option<UnwindInfo>,
 
     /// Information used to translate from binary offsets back to the original
     /// location found in the wasm input.
-    address_map: FunctionAddressMap,
+    pub address_map: FunctionAddressMap,
 
     /// Metadata about traps in this module, mapping code offsets to the trap
     /// that they may cause.
-    traps: Vec<TrapInformation>,
+    pub traps: Vec<TrapInformation>,
 
-    relocations: Vec<Relocation>,
-    value_labels_ranges: cranelift_codegen::ValueLabelsRanges,
-    stack_slots: ir::StackSlots,
+    pub relocations: Vec<Relocation>,
+    pub value_labels_ranges: cranelift_codegen::ValueLabelsRanges,
+    pub stack_slots: ir::StackSlots,
 
-    info: FunctionInfo,
+    pub info: FunctionInfo,
 }
 
 /// Function and its instructions addresses mappings.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
-struct FunctionAddressMap {
+pub struct FunctionAddressMap {
     /// An array of data for the instructions in this function, indicating where
     /// each instruction maps back to in the original function.
     ///
@@ -169,7 +171,7 @@ struct FunctionAddressMap {
 /// A record of a relocation to perform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
-struct Relocation {
+pub struct Relocation {
     /// The relocation code.
     reloc: binemit::Reloc,
     /// Relocation target.
@@ -196,7 +198,7 @@ enum RelocationTarget {
 /// given calling convention.
 ///
 /// This will add the default vmctx/etc parameters to the signature returned.
-fn blank_sig(isa: &dyn TargetIsa, call_conv: CallConv) -> ir::Signature {
+pub fn blank_sig(isa: &dyn TargetIsa, call_conv: CallConv) -> ir::Signature {
     let pointer_type = isa.pointer_type();
     let mut sig = ir::Signature::new(call_conv);
     // Add the caller/callee `vmctx` parameters.
@@ -211,7 +213,7 @@ fn blank_sig(isa: &dyn TargetIsa, call_conv: CallConv) -> ir::Signature {
 /// Returns the default calling convention for the `isa` provided.
 ///
 /// Note that this calling convention is used for exported functions.
-fn wasmtime_call_conv(isa: &dyn TargetIsa) -> CallConv {
+pub fn wasmtime_call_conv(isa: &dyn TargetIsa) -> CallConv {
     match isa.triple().default_calling_convention() {
         Ok(CallingConvention::AppleAarch64) => CallConv::WasmtimeAppleAarch64,
         Ok(CallingConvention::SystemV) | Err(()) => CallConv::WasmtimeSystemV,
@@ -232,7 +234,7 @@ fn push_types(isa: &dyn TargetIsa, sig: &mut ir::Signature, wasm: &WasmFuncType)
 }
 
 /// Returns the corresponding cranelift type for the provided wasm type.
-fn value_type(isa: &dyn TargetIsa, ty: WasmType) -> ir::types::Type {
+pub fn value_type(isa: &dyn TargetIsa, ty: WasmType) -> ir::types::Type {
     match ty {
         WasmType::I32 => ir::types::I32,
         WasmType::I64 => ir::types::I64,
@@ -251,7 +253,7 @@ fn value_type(isa: &dyn TargetIsa, ty: WasmType) -> ir::types::Type {
 /// indirectly call a wasm function it must be possibly exported somehow (e.g.
 /// this assumes the function target to call doesn't use the "fast" calling
 /// convention).
-fn indirect_signature(isa: &dyn TargetIsa, wasm: &WasmFuncType) -> ir::Signature {
+pub fn indirect_signature(isa: &dyn TargetIsa, wasm: &WasmFuncType) -> ir::Signature {
     let mut sig = blank_sig(isa, wasmtime_call_conv(isa));
     push_types(isa, &mut sig, wasm);
     return sig;
