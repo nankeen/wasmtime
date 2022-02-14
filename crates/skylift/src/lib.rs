@@ -64,25 +64,24 @@ impl Interceptor for RemoteId {
     }
 }
 
-pub fn setup_global_subscriber(service_name: &str) -> Result<()> {
+pub fn setup_global_subscriber(endpoint: &str, service_name: &str) -> Result<()> {
     let jaeger_tracer = opentelemetry_jaeger::new_pipeline()
+        .with_agent_endpoint(endpoint)
         .with_service_name(service_name)
         .install_simple()?;
 
-    let fmt_layer = fmt::Layer::default();
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new("trace,h2=info,regalloc=error,cranelift_codegen=info,tokio_util=info,hyper=info,tower=info,want=info,mio=info,tonic=info"))
+    if std::env::var("TRACE_FMT").is_ok() {
+        let fmt_layer = fmt::Layer::default();
+        tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new("trace,h2=info,regalloc=error,cranelift_codegen=info,tokio_util=info,hyper=info,tower=info,want=info,mio=info,tonic=info,wasi_common=info"))
         .with(fmt_layer)
         .with(tracing_opentelemetry::layer().with_tracer(jaeger_tracer))
         .try_init()?;
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    } else {
+        tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new("trace,h2=info,regalloc=error,cranelift_codegen=info,tokio_util=info,hyper=info,tower=info,want=info,mio=info,tonic=info,wasi_common=info"))
+        .with(tracing_opentelemetry::layer().with_tracer(jaeger_tracer))
+        .try_init()?;
     }
+    Ok(())
 }

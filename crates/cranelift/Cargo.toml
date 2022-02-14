@@ -25,6 +25,7 @@ object = { version = "0.26.0", default-features = false, features = ['write'] }
 more-asserts = "0.2.1"
 thiserror = "1.0.4"
 serde = { version = "1", features = ["derive"], optional = true }
+tracing = "0.1"
 
 [features]
 all-arch = ["cranelift-codegen/all-arch"]

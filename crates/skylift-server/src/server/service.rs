@@ -11,7 +11,7 @@ use skylift::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
-use tracing::{instrument, span, Level};
+use tracing::instrument;
 use wasmtime_environ::ModuleEnvironment;
 use wasmtime_jit::TypeTables;
 
@@ -84,6 +84,7 @@ impl Compiler for CompilerService {
         })?
     }
 
+    #[instrument(skip_all)]
     async fn get_triple(&self, req: Request<()>) -> Result<Response<Triple>, Status> {
         // Retrieve builder id from metadata (headers)
         let session_lock = self.get_session(&get_remote_id(&req)?).await?;

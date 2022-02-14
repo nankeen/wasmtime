@@ -5,18 +5,21 @@
 
 use crate::{
     compiler::Compiler,
-    convert::{internal2rpc, rpc2internal},
+    convert::internal2rpc,
     skylift_grpc::{compiler_client::CompilerClient, SetRequest},
     RemoteId,
 };
-use anyhow::{anyhow, Result};
-use cranelift_codegen::{settings::{self, Configurable, SetError}, isa};
+use anyhow::Result;
+use cranelift_codegen::{
+    isa,
+    settings::{self, Configurable, SetError},
+};
 use std::fmt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tonic::{codegen::InterceptedService, transport::Channel, Request};
+use tracing::instrument;
 use wasmtime_environ::{CompilerBuilder, Setting};
-
 
 /// [`Builder`] implements `wasmtime_environ::CompilerBuilder`.
 ///
@@ -34,16 +37,18 @@ pub struct Builder {
 
 pub fn builder() -> Box<dyn CompilerBuilder> {
     // Establish connection to server
-    Box::new(Builder::new("http://[::1]:1337").unwrap())
+    Box::new(Builder::new(&std::env::var("COMPILE_SERVER").unwrap()).unwrap())
 }
 
 impl Builder {
-    pub fn new(addr: &'static str) -> Result<Self> {
+    pub fn new(addr: &str) -> Result<Self> {
         let runtime = Runtime::new()?;
         let addr = addr.to_string();
+        let isa_flags =
+            cranelift_native::builder().expect("host machine is not a supported target");
 
         // Create a new client
-        let (triple, client) = runtime.block_on(async move {
+        let client = runtime.block_on(async move {
             // Connect to the endpoint
             let channel = Channel::from_shared(addr)?.connect().await?;
 
@@ -56,13 +61,9 @@ impl Builder {
                 .into();
 
             // A new client that would include the builder id
-            let mut client = CompilerClient::with_interceptor(channel, builder_id);
+            let client = CompilerClient::with_interceptor(channel, builder_id);
 
-            let triple =
-                rpc2internal::from_triple(client.get_triple(Request::new(())).await?.get_ref())
-                    .ok_or_else(|| anyhow!("can't retrieve triple"))?;
-
-            Ok::<_, anyhow::Error>((triple, client))
+            Ok::<_, anyhow::Error>(client)
         })?;
 
         // Mirror remote flags operation
@@ -79,12 +80,17 @@ impl Builder {
             .set("enable_probestack", "false")
             .expect("should be valid flag");
 
-        Ok(Self {
+        let triple = isa_flags.triple().clone();
+
+        let mut builder = Self {
             flags,
-            isa_flags: cranelift_native::builder().expect("host machine is not a supported target"),
+            isa_flags,
             client,
             runtime: Arc::new(runtime),
-        })
+        };
+        builder.target(triple)?;
+
+        Ok(builder)
     }
 }
 
@@ -134,6 +140,7 @@ impl CompilerBuilder for Builder {
         unimplemented!("not implemented");
     }
 
+    #[instrument]
     fn build(&self) -> Box<dyn wasmtime_environ::Compiler> {
         let mut client = self.client.clone();
         self.runtime
@@ -147,7 +154,7 @@ impl CompilerBuilder for Builder {
         Box::new(Compiler::new(
             self.client.clone(),
             self.runtime.clone(),
-            isa
+            isa,
         ))
     }
 

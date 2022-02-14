@@ -270,6 +270,7 @@ impl RunCommand {
         result
     }
 
+    #[instrument(skip_all)]
     fn load_main_module(&self, store: &mut Store<Host>, linker: &mut Linker<Host>) -> Result<()> {
         if let Some(timeout) = self.wasm_timeout {
             let handle = store.interrupt_handle()?;
@@ -295,6 +296,7 @@ impl RunCommand {
         }
     }
 
+    #[instrument(skip(self, store, linker))]
     fn invoke_export(
         &self,
         store: &mut Store<Host>,
@@ -312,6 +314,7 @@ impl RunCommand {
         self.invoke_func(store, func, Some(name))
     }
 
+    #[instrument(skip(self, store))]
     fn invoke_func(&self, store: &mut Store<Host>, func: Func, name: Option<&str>) -> Result<()> {
         let ty = func.ty(&store);
         if ty.params().len() > 0 {
@@ -376,6 +379,7 @@ impl RunCommand {
         Ok(())
     }
 
+    #[instrument(skip(self, engine))]
     fn load_module(&self, engine: &Engine, path: &Path) -> Result<Module> {
         // Peek at the first few bytes of the file to figure out if this is
         // something we can pass off to `deserialize_file` which is fastest if

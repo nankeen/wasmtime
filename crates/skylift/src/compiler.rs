@@ -47,6 +47,7 @@ pub struct Compiler {
 }
 
 impl Compiler {
+    #[instrument(skip(isa))]
     pub(crate) fn new(
         mut client: CompilerClient<InterceptedService<Channel, RemoteId>>,
         runtime: Arc<Runtime>,
@@ -98,15 +99,18 @@ impl Compiler {
         }
     }
 
+    #[instrument]
     fn take_translator(&self) -> FuncTranslator {
         let candidate = self.translators.lock().unwrap().pop();
         candidate.unwrap_or_else(FuncTranslator::new)
     }
 
+    #[instrument(skip(translator))]
     fn save_translator(&self, translator: FuncTranslator) {
         self.translators.lock().unwrap().push(translator);
     }
 
+    #[instrument]
     fn host_to_wasm_trampoline(&self, ty: &WasmFuncType) -> Result<CompiledFunction, CompileError> {
         let isa = &*self.isa;
         let value_size = mem::size_of::<u128>();
@@ -189,6 +193,7 @@ impl Compiler {
         Ok(func)
     }
 
+    #[instrument]
     fn wasm_to_host_trampoline(
         &self,
         ty: &WasmFuncType,
@@ -264,6 +269,7 @@ impl Compiler {
         Ok(func)
     }
 
+    #[instrument(skip(isa, context))]
     fn finish_trampoline(
         &self,
         mut context: Context,
@@ -326,6 +332,7 @@ impl wasmtime_environ::Compiler for Compiler {
         unimplemented!("emit_obj should not be used with remote compiler")
     }
 
+    #[instrument]
     fn emit_trampoline_obj(
         &self,
         ty: &WasmFuncType,

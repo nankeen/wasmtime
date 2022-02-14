@@ -9,6 +9,7 @@ use std::fs;
 use std::mem;
 use std::path::Path;
 use std::sync::Arc;
+use tracing::instrument;
 use wasmparser::Validator;
 #[cfg(not(feature = "remote"))]
 use wasmtime_environ::ModuleEnvironment;
@@ -233,6 +234,7 @@ impl Module {
     /// ```
     #[cfg(compiler)]
     #[cfg_attr(nightlydoc, doc(cfg(feature = "cranelift")))] // see build.rs
+    #[instrument(skip_all)]
     pub fn from_file(engine: &Engine, file: impl AsRef<Path>) -> Result<Module> {
         match Self::new(
             engine,
@@ -286,6 +288,7 @@ impl Module {
     /// ```
     #[cfg(compiler)]
     #[cfg_attr(nightlydoc, doc(cfg(feature = "cranelift")))] // see build.rs
+    #[instrument(skip_all)]
     pub fn from_binary(engine: &Engine, binary: &[u8]) -> Result<Module> {
         // Check to see that the config's target matches the host
         let target = engine.compiler().triple();
@@ -363,6 +366,7 @@ impl Module {
     ///   have local type information with indices that refer to these returned
     ///   tables.
     #[cfg(compiler)]
+    #[instrument(skip_all)]
     pub(crate) fn build_artifacts(
         engine: &Engine,
         wasm: &[u8],

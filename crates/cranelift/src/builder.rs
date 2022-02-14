@@ -7,6 +7,7 @@ use anyhow::Result;
 use cranelift_codegen::isa;
 use cranelift_codegen::settings::{self, Configurable, SetError};
 use std::fmt;
+use tracing::instrument;
 use wasmtime_environ::{CompilerBuilder, Setting, SettingKind};
 
 #[derive(Clone)]
@@ -51,19 +52,23 @@ pub fn builder() -> Box<dyn CompilerBuilder> {
 }
 
 impl CompilerBuilder for Builder {
+    #[instrument]
     fn triple(&self) -> &target_lexicon::Triple {
         self.isa_flags.triple()
     }
 
+    #[instrument]
     fn clone(&self) -> Box<dyn CompilerBuilder> {
         Box::new(Clone::clone(self))
     }
 
+    #[instrument]
     fn target(&mut self, target: target_lexicon::Triple) -> Result<()> {
         self.isa_flags = isa::lookup(target)?;
         Ok(())
     }
 
+    #[instrument]
     fn set(&mut self, name: &str, value: &str) -> Result<()> {
         // Special wasmtime-cranelift-only settings first
         if name == "wasmtime_linkopt_padding_between_functions" {
@@ -88,6 +93,7 @@ impl CompilerBuilder for Builder {
         Ok(())
     }
 
+    #[instrument]
     fn enable(&mut self, name: &str) -> Result<()> {
         if let Err(err) = self.flags.enable(name) {
             match err {
@@ -101,6 +107,7 @@ impl CompilerBuilder for Builder {
         Ok(())
     }
 
+    #[instrument]
     fn build(&self) -> Box<dyn wasmtime_environ::Compiler> {
         let isa = self
             .isa_flags
@@ -109,6 +116,7 @@ impl CompilerBuilder for Builder {
         Box::new(crate::compiler::Compiler::new(isa, self.linkopts.clone()))
     }
 
+    #[instrument]
     fn settings(&self) -> Vec<Setting> {
         self.isa_flags
             .iter()

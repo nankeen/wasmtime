@@ -4310,6 +4310,7 @@ dependencies = [
  "skylift",
  "target-lexicon",
  "tempfile",
+ "tracing",
  "wasi-cap-std-sync",
  "wasmparser 0.80.2",
  "wasmtime-cache",
@@ -4447,6 +4448,7 @@ dependencies = [
  "serde",
  "target-lexicon",
  "thiserror",
+ "tracing",
  "wasmparser 0.80.2",
  "wasmtime-environ",
 ]
