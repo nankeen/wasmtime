@@ -4,8 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use cranelift_codegen::ir::MemFlags;
-use cranelift_codegen::print_errors::pretty_error;
-use cranelift_codegen::{binemit, settings, Context};
+use cranelift_codegen::{settings, Context};
 use cranelift_codegen::{
     ir::{self, ExternalName, InstBuilder},
     isa::TargetIsa,
@@ -25,8 +24,7 @@ use tokio::runtime::Runtime;
 use tonic::{codegen::InterceptedService, transport::Channel, Request};
 use tracing::instrument;
 use wasmtime_cranelift::{
-    blank_sig, indirect_signature, value_type, wasmtime_call_conv, CompiledFunction, ObjectBuilder,
-    TrampolineRelocSink,
+    blank_sig, indirect_signature, value_type, wasmtime_call_conv, CompiledFunction, finish_trampoline, ObjectBuilder,
 };
 use wasmtime_environ::{
     CompileError, EntityRef, FlagValue, FunctionBodyData, FunctionInfo, Module, ModuleTranslation,
@@ -188,7 +186,7 @@ impl Compiler {
         builder.ins().return_(&[]);
         builder.finalize();
 
-        let func = self.finish_trampoline(context, isa)?;
+        let func = finish_trampoline(context, isa)?;
         self.save_translator(func_translator);
         Ok(func)
     }
@@ -264,48 +262,9 @@ impl Compiler {
         builder.ins().return_(&results);
         builder.finalize();
 
-        let func = self.finish_trampoline(context, isa)?;
+        let func = finish_trampoline(context, isa)?;
         self.save_translator(func_translator);
         Ok(func)
-    }
-
-    #[instrument(skip(isa, context))]
-    fn finish_trampoline(
-        &self,
-        mut context: Context,
-        isa: &dyn TargetIsa,
-    ) -> Result<CompiledFunction, CompileError> {
-        let mut code_buf = Vec::new();
-        let mut reloc_sink = TrampolineRelocSink::default();
-        let mut trap_sink = binemit::NullTrapSink {};
-        let mut stack_map_sink = binemit::NullStackMapSink {};
-        context
-            .compile_and_emit(
-                isa,
-                &mut code_buf,
-                &mut reloc_sink,
-                &mut trap_sink,
-                &mut stack_map_sink,
-            )
-            .map_err(|error| {
-                CompileError::Codegen(pretty_error(&context.func, Some(isa), error))
-            })?;
-
-        let unwind_info = context.create_unwind_info(isa).map_err(|error| {
-            CompileError::Codegen(pretty_error(&context.func, Some(isa), error))
-        })?;
-
-        Ok(CompiledFunction {
-            body: code_buf,
-            jt_offsets: context.func.jt_offsets,
-            unwind_info,
-            relocations: reloc_sink.relocs,
-            stack_slots: Default::default(),
-            value_labels_ranges: Default::default(),
-            info: Default::default(),
-            address_map: Default::default(),
-            traps: Vec::new(),
-        })
     }
 }
 

@@ -102,7 +102,7 @@ use wasmtime_environ::{
 use serde::{Deserialize, Serialize};
 
 pub use builder::builder;
-pub use compiler::TrampolineRelocSink;
+pub use trampoline::finish_trampoline;
 pub use obj::ObjectBuilder;
 
 mod builder;
@@ -110,6 +110,7 @@ mod compiler;
 mod debug;
 mod func_environ;
 mod obj;
+mod trampoline;
 
 type CompiledFunctions = PrimaryMap<DefinedFuncIndex, CompiledFunction>;
 
@@ -118,33 +119,33 @@ type CompiledFunctions = PrimaryMap<DefinedFuncIndex, CompiledFunction>;
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 pub struct CompiledFunction {
     /// The machine code for this function.
-    pub body: Vec<u8>,
+    body: Vec<u8>,
 
     /// The jump tables offsets (in the body).
-    pub jt_offsets: ir::JumpTableOffsets,
+    jt_offsets: ir::JumpTableOffsets,
 
     /// The unwind information.
-    pub unwind_info: Option<UnwindInfo>,
+    unwind_info: Option<UnwindInfo>,
 
     /// Information used to translate from binary offsets back to the original
     /// location found in the wasm input.
-    pub address_map: FunctionAddressMap,
+    address_map: FunctionAddressMap,
 
     /// Metadata about traps in this module, mapping code offsets to the trap
     /// that they may cause.
-    pub traps: Vec<TrapInformation>,
+    traps: Vec<TrapInformation>,
 
-    pub relocations: Vec<Relocation>,
-    pub value_labels_ranges: cranelift_codegen::ValueLabelsRanges,
-    pub stack_slots: ir::StackSlots,
+    relocations: Vec<Relocation>,
+    value_labels_ranges: cranelift_codegen::ValueLabelsRanges,
+    stack_slots: ir::StackSlots,
 
-    pub info: FunctionInfo,
+    info: FunctionInfo,
 }
 
 /// Function and its instructions addresses mappings.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
-pub struct FunctionAddressMap {
+struct FunctionAddressMap {
     /// An array of data for the instructions in this function, indicating where
     /// each instruction maps back to in the original function.
     ///
@@ -171,7 +172,7 @@ pub struct FunctionAddressMap {
 /// A record of a relocation to perform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
-pub struct Relocation {
+struct Relocation {
     /// The relocation code.
     reloc: binemit::Reloc,
     /// Relocation target.

@@ -11,7 +11,7 @@ use skylift::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
-use tracing::instrument;
+use tracing::{instrument, span, Level};
 use wasmtime_environ::ModuleEnvironment;
 use wasmtime_jit::TypeTables;
 
@@ -179,6 +179,7 @@ impl Compiler for CompilerService {
                 // modules found and reduces to collection into a vector. The second
                 // level of map/reduce here maps over all functions within each wasm
                 // module found and collects into an ELF image via `emit_obj`.
+                let _compile_span = span!(Level::TRACE, "compile_artifacts").entered();
                 let artifacts = translations
                     .into_par_iter()
                     .map(|mut translation| -> anyhow::Result<_> {
