@@ -1,6 +1,6 @@
 use crate::builder::LinkOptions;
-use crate::finish_trampoline;
 use crate::debug::ModuleMemoryOffset;
+use crate::finish_trampoline;
 use crate::func_environ::{get_func_name, FuncEnvironment};
 use crate::obj::ObjectBuilder;
 use crate::{

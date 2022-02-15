@@ -1,6 +1,6 @@
-use cranelift_codegen::{isa::TargetIsa, ir};
 use cranelift_codegen::print_errors::pretty_error;
-use cranelift_codegen::{Context, binemit};
+use cranelift_codegen::{binemit, Context};
+use cranelift_codegen::{ir, isa::TargetIsa};
 use wasmtime_environ::CompileError;
 
 use crate::{CompiledFunction, Relocation, RelocationTarget};

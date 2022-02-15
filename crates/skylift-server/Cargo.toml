@@ -8,11 +8,13 @@ authors = ["Kai <nankeen@users.noreply.github.com>"]
 anyhow = "1.0.19"
 cranelift-wasm = { path = "../../cranelift/wasm", version = "0.77.0" }
 cranelift-codegen = { path = "../../cranelift/codegen", version = "0.77.0" }
+cfg-if = "1.0"
 object = { version = "0.26.0", default-features = false, features = ['write'] }
 target-lexicon = "0.12"
 wasmtime-environ = { path = "../environ", version = "0.30.0" }
 wasmtime-cranelift = { path = "../cranelift", version = "0.30.0", features = ["enable-serde"]}
 wasmtime-jit = { path = "../jit", version = "0.30.0" }
+wasmtime-cache = { path = "../cache", version = "0.30.0", optional = true }
 wasmtime = { path = "../wasmtime", version = "0.30.0" }
 wasmparser = "0.80.0"
 
@@ -36,3 +38,6 @@ rayon = "1.0"
 
 [build-dependencies]
 tonic-build = "0.6"
+
+[features]
+cache = ["wasmtime-cache"]

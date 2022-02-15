@@ -3336,6 +3336,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "cfg-if 1.0.0",
  "cranelift-codegen",
  "cranelift-wasm",
  "object 0.26.2",
@@ -3355,6 +3356,7 @@ dependencies = [
  "uuid",
  "wasmparser 0.80.2",
  "wasmtime",
+ "wasmtime-cache",
  "wasmtime-cranelift",
  "wasmtime-environ",
  "wasmtime-jit",

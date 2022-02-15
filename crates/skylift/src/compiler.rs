@@ -4,11 +4,11 @@ use crate::{
 };
 use anyhow::Result;
 use cranelift_codegen::ir::MemFlags;
-use cranelift_codegen::{settings, Context};
 use cranelift_codegen::{
     ir::{self, ExternalName, InstBuilder},
     isa::TargetIsa,
 };
+use cranelift_codegen::{settings, Context};
 use cranelift_wasm::{
     DefinedFuncIndex, FuncTranslator, FunctionBuilder, SignatureIndex, WasmFuncType,
 };
@@ -24,7 +24,8 @@ use tokio::runtime::Runtime;
 use tonic::{codegen::InterceptedService, transport::Channel, Request};
 use tracing::instrument;
 use wasmtime_cranelift::{
-    blank_sig, indirect_signature, value_type, wasmtime_call_conv, CompiledFunction, finish_trampoline, ObjectBuilder,
+    blank_sig, finish_trampoline, indirect_signature, value_type, wasmtime_call_conv,
+    CompiledFunction, ObjectBuilder,
 };
 use wasmtime_environ::{
     CompileError, EntityRef, FlagValue, FunctionBodyData, FunctionInfo, Module, ModuleTranslation,

@@ -44,7 +44,7 @@ humantime = "2.0.0"
 wasmparser = "0.80.0"
 lazy_static = "1.4.0"
 skylift = { path = "crates/skylift", version = "0.1.0" }
-skylift-server = { path = "crates/skylift-server", version = "0.1.0" }
+skylift-server = { path = "crates/skylift-server", version = "0.1.0", features = ["cache"] }
 tracing = "0.1"
 
 [dev-dependencies]

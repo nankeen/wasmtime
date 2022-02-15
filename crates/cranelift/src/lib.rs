@@ -102,8 +102,8 @@ use wasmtime_environ::{
 use serde::{Deserialize, Serialize};
 
 pub use builder::builder;
-pub use trampoline::finish_trampoline;
 pub use obj::ObjectBuilder;
+pub use trampoline::finish_trampoline;
 
 mod builder;
 mod compiler;
