@@ -101,12 +101,17 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use wasmtime::{Config, ProfilingStrategy, Strategy};
 
-fn pick_compilation_strategy(cranelift: bool, lightbeam: bool) -> Result<Strategy> {
-    Ok(match (lightbeam, cranelift) {
-        (true, false) => Strategy::Lightbeam,
-        (false, true) => Strategy::Cranelift,
-        (false, false) => Strategy::Auto,
-        (true, true) => bail!("Can't enable --cranelift and --lightbeam at the same time"),
+fn pick_compilation_strategy(
+    cranelift: bool,
+    lightbeam: bool,
+    skylift: Option<String>,
+) -> Result<Strategy> {
+    Ok(match (lightbeam, cranelift, skylift) {
+        (true, false, None) => Strategy::Lightbeam,
+        (false, true, None) => Strategy::Cranelift,
+        (false, false, Some(skylift_server)) => Strategy::Skylift(skylift_server),
+        (false, false, None) => Strategy::Auto,
+        _ => bail!("Can't enable --cranelift and --lightbeam at the same time"),
     })
 }
 
@@ -156,7 +161,7 @@ struct CommonOptions {
     config: Option<PathBuf>,
 
     /// Use Cranelift for all compilation
-    #[structopt(long, conflicts_with = "lightbeam")]
+    #[structopt(long, conflicts_with_all = &["lightbeam", "skylift"])]
     cranelift: bool,
 
     /// Disable logging.
@@ -276,6 +281,18 @@ struct CommonOptions {
     /// Enable Cranelift's internal NaN canonicalization
     #[structopt(long)]
     enable_cranelift_nan_canonicalization: bool,
+
+    /// Enable telemetry to the following OpenTelemetry endpoint
+    #[structopt(long, parse(from_str), requires = "trace_name")]
+    trace_endpoint: Option<String>,
+
+    /// Enable telemetry to the following OpenTelemetry endpoint
+    #[structopt(long, parse(from_str))]
+    trace_name: Option<String>,
+
+    /// Enable remote compilation with the following endpoint
+    #[structopt(long, parse(from_str))]
+    skylift: Option<String>,
 }
 
 impl CommonOptions {
@@ -287,7 +304,11 @@ impl CommonOptions {
             let prefix = "wasmtime.dbg.";
             init_file_per_thread_logger(prefix);
         } else {
-            pretty_env_logger::init();
+            match (&self.trace_endpoint, &self.trace_name) {
+                (Some(trace_endpoint), Some(trace_name)) => skylift::setup_global_subscriber(&trace_endpoint, &trace_name)
+                .expect("cannot setup telemetry subscriber"),
+                _ => pretty_env_logger::init(),
+            }
         }
     }
 
@@ -297,7 +318,16 @@ impl CommonOptions {
         // Set the compiler and target before setting any cranelift options,
         // since the strategy determines which compiler is in use and the target
         // will reset any target-specific options.
-        config.strategy(pick_compilation_strategy(self.cranelift, self.lightbeam)?)?;
+        let compilation_strategy =
+            pick_compilation_strategy(self.cranelift, self.lightbeam, self.skylift.clone())?;
+
+        if let Some(_) = self.skylift {
+            config.local_compile(false);
+        } else {
+            config.local_compile(true);
+        }
+
+        config.strategy(compilation_strategy)?;
         if let Some(target) = target {
             config.target(target)?;
         }

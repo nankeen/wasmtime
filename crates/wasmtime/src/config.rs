@@ -370,6 +370,8 @@ pub struct Config {
     pub(crate) module_version: ModuleVersionStrategy,
     pub(crate) parallel_compilation: bool,
     pub(crate) paged_memory_initialization: bool,
+    #[cfg(feature = "remote")]
+    pub(crate) local_compile: bool,
 }
 
 impl Config {
@@ -395,6 +397,8 @@ impl Config {
             parallel_compilation: true,
             // Default to paged memory initialization when using uffd on linux
             paged_memory_initialization: cfg!(all(target_os = "linux", feature = "uffd")),
+            #[cfg(feature = "remote")]
+            local_compile: false,
         };
         #[cfg(compiler)]
         {
@@ -796,6 +800,15 @@ impl Config {
     /// [proposal]: https://github.com/webassembly/memory64
     pub fn wasm_memory64(&mut self, enable: bool) -> &mut Self {
         self.features.memory64 = enable;
+        self
+    }
+
+    /// Configures whether the WebAssembly will be compiled locally.
+    ///
+    /// This is `false` by default.
+    #[cfg(feature = "remote")]
+    pub fn local_compile(&mut self, local_compile: bool) -> &mut Self {
+        self.local_compile = local_compile;
         self
     }
 
@@ -1332,14 +1345,9 @@ impl Config {
 #[cfg(compiler)]
 fn compiler_builder(strategy: Strategy) -> Result<Box<dyn CompilerBuilder>> {
     match strategy {
-        #[cfg(not(feature = "remote"))]
         Strategy::Auto => Ok(wasmtime_cranelift::builder()),
-        #[cfg(not(feature = "remote"))]
-        Strategy::Skylift => {
-            anyhow::bail!("remote compilation strategy wasn't enabled at compile time");
-        }
         #[cfg(feature = "remote")]
-        Strategy::Auto | Strategy::Skylift => Ok(skylift::builder()),
+        Strategy::Skylift(compile_server) => Ok(skylift::builder(&compile_server)),
         #[cfg(feature = "lightbeam")]
         Strategy::Lightbeam => unimplemented!(),
         Strategy::Cranelift => Ok(wasmtime_cranelift::builder()),
@@ -1384,6 +1392,8 @@ impl Clone for Config {
             module_version: self.module_version.clone(),
             parallel_compilation: self.parallel_compilation,
             paged_memory_initialization: self.paged_memory_initialization,
+            #[cfg(feature = "remote")]
+            local_compile: self.local_compile,
         }
     }
 }
@@ -1454,7 +1464,8 @@ pub enum Strategy {
     Lightbeam,
 
     /// Remote compilation backend
-    Skylift,
+    #[cfg(feature = "remote")]
+    Skylift(String),
 }
 
 /// Possible optimization levels for the Cranelift codegen backend.

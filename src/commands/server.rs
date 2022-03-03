@@ -1,3 +1,4 @@
+use crate::CommonOptions;
 use anyhow::Result;
 use skylift_server::run_server;
 use structopt::{clap::AppSettings, StructOpt};
@@ -15,12 +16,16 @@ lazy_static::lazy_static! {
 pub struct ServerCommand {
     #[structopt(long = "host")]
     host: String,
+
+    #[structopt(flatten)]
+    common: CommonOptions,
 }
 
 impl ServerCommand {
     /// Executes the command
     #[instrument(skip(self))]
     pub fn execute(&self) -> Result<()> {
+        self.common.init_logging();
         info!("Starting server on {}", self.host);
 
         run_server(&self.host)

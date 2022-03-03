@@ -35,9 +35,9 @@ pub struct Builder {
     runtime: Arc<Runtime>,
 }
 
-pub fn builder() -> Box<dyn CompilerBuilder> {
+pub fn builder(compile_server: &str) -> Box<dyn CompilerBuilder> {
     // Establish connection to server
-    Box::new(Builder::new(&std::env::var("COMPILE_SERVER").unwrap()).unwrap())
+    Box::new(Builder::new(compile_server).unwrap())
 }
 
 impl Builder {
