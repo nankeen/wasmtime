@@ -283,7 +283,7 @@ struct CommonOptions {
     enable_cranelift_nan_canonicalization: bool,
 
     /// Enable telemetry to the following OpenTelemetry endpoint
-    #[structopt(long, parse(from_str), requires = "trace_name")]
+    #[structopt(long, parse(from_str), requires = "trace-name")]
     trace_endpoint: Option<String>,
 
     /// Enable telemetry to the following OpenTelemetry endpoint
@@ -305,8 +305,10 @@ impl CommonOptions {
             init_file_per_thread_logger(prefix);
         } else {
             match (&self.trace_endpoint, &self.trace_name) {
-                (Some(trace_endpoint), Some(trace_name)) => skylift::setup_global_subscriber(&trace_endpoint, &trace_name)
-                .expect("cannot setup telemetry subscriber"),
+                (Some(trace_endpoint), Some(trace_name)) => {
+                    skylift::setup_global_subscriber(&trace_endpoint, &trace_name)
+                        .expect("cannot setup telemetry subscriber")
+                }
                 _ => pretty_env_logger::init(),
             }
         }
