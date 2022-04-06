@@ -46,7 +46,8 @@ service Compiler {
   // Compiler
   rpc GetFlags(google.protobuf.Empty) returns (FlagMap);
   rpc GetISAFlags(google.protobuf.Empty) returns (FlagMap);
-  rpc BuildModule(BuildModuleRequest) returns (BuildModuleResponse);
+  rpc BuildModule(BuildModuleRequest)
+    returns (BuildModuleResponse);
 }
 
 message BuildModuleRequest {

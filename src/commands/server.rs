@@ -28,6 +28,7 @@ impl ServerCommand {
         self.common.init_logging();
         info!("Starting server on {}", self.host);
 
-        run_server(&self.host)
+        let config = self.common.config(None)?;
+        run_server(config.cache_config, &self.host)
     }
 }

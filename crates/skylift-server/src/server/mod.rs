@@ -12,10 +12,11 @@ use skylift::{
 use tonic::transport::Server;
 use wasmparser::WasmFeatures;
 use wasmtime_environ::Tunables;
+use wasmtime_cache::CacheConfig;
 
 #[tokio::main]
-pub async fn run_server(addr: &str) -> Result<()> {
-    let compiler_service = service::CompilerService::new()?;
+pub async fn run_server(cache_config: CacheConfig, addr: &str) -> Result<()> {
+    let compiler_service = service::CompilerService::new(cache_config)?;
     let compiler_server = CompilerServer::new(compiler_service);
 
     Server::builder()

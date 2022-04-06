@@ -357,7 +357,8 @@ pub struct Config {
     pub(crate) compiler: Box<dyn CompilerBuilder>,
     pub(crate) tunables: Tunables,
     #[cfg(feature = "cache")]
-    pub(crate) cache_config: CacheConfig,
+    /// Cache configuration for [`Config`]
+    pub cache_config: CacheConfig,
     pub(crate) profiler: Arc<dyn ProfilingAgent>,
     pub(crate) mem_creator: Option<Arc<dyn RuntimeMemoryCreator>>,
     pub(crate) allocation_strategy: InstanceAllocationStrategy,

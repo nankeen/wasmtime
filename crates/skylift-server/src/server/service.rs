@@ -34,9 +34,9 @@ fn get_remote_id<T>(req: &Request<T>) -> Result<RemoteId, Status> {
 }
 
 impl CompilerService {
-    pub(crate) fn new() -> anyhow::Result<Self> {
+    pub(crate) fn new(cache_config: CacheConfig) -> anyhow::Result<Self> {
         Ok(Self {
-            cache_config: CacheConfig::from_file(None)?,
+            cache_config,
             sessions: Default::default(),
         })
     }
